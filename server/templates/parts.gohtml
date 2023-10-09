@@ -1,0 +1,8 @@
+{{ define "base" }}
+    Hello
+        <ul>
+        {{ range .leftNav }}
+            <li hx-get="/api/v1/parts/agent/{{ .ID }}" hx-target="#main-content" hx-on="click">{{ .Name }}</li>
+        {{ end }}
+        </ul>
+{{ end }}
