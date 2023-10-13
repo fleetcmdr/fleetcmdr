@@ -12,15 +12,6 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-func checkError(err error) bool {
-	if err != nil {
-		PrintErrorN(err, 1)
-		//log.Print(err)
-		return true
-	}
-	return false
-}
-
 type service struct {
 	hc        http.Client
 	router    *httprouter.Router

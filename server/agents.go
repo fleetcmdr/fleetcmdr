@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"database/sql"
+	"errors"
+	"fmt"
 	"time"
 )
 
@@ -12,16 +15,16 @@ type agent struct {
 	Deleted  time.Time
 }
 
-func (svc *service) getAgents(limit, skip int) []agent {
+func (svc *service) getAgents(limit, skip int) []*agent {
 	q := "SELECT id, client_id, hostname FROM agents WHERE id NOT IN (select id FROM deleted_agents) ORDER BY hostname asc LIMIT ? OFFSET ?"
 	rows, err := svc.db.QueryContext(context.Background(), q, limit, skip)
 	if checkError(err) {
 		return nil
 	}
 
-	var agents []agent
+	var agents []*agent
 	for rows.Next() {
-		var a agent
+		var a *agent
 		err = rows.Scan(&a.ID, &a.ClientID, &a.Name)
 		if checkError(err) {
 			return nil
@@ -33,13 +36,16 @@ func (svc *service) getAgents(limit, skip int) []agent {
 	return agents
 }
 
-func (svc *service) getAgentByID(id int) []agent {
-	var a agent
+func (svc *service) getAgentByID(id int) (*agent, error) {
+	var a *agent
 	q := "SELECT id, client_id, name FROM agents WHERE id = ?"
 	err := svc.db.QueryRowContext(context.Background(), q, id).Scan(&a.ID, &a.ClientID, &a.Name, &a.Deleted)
 	if checkError(err) {
-		return nil
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("agent '%d' does not exist: %w", id, err)
+		}
+		return nil, err
 	}
 
-	return a
+	return a, nil
 }
