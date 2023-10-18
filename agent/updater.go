@@ -45,7 +45,7 @@ func (d *daemon) Stop(s service.Service) error {
 
 func deployInstaller() {
 	d := newDaemon()
-	d.daemonCfg = getPlatformInstallerConfig()
+	d.daemonCfg = getPlatformUpdaterConfig()
 	var err error
 
 	d.service, err = service.New(d, d.daemonCfg)

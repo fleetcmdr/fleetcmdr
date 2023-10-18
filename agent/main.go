@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net/http"
 	"net/url"
 	"time"
@@ -22,10 +23,11 @@ type daemon struct {
 }
 
 func main() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
 	d := newDaemon()
 	d.daemonCfg = getPlatformAgentConfig()
-	d.cmdr = "https://localhost:2213/"
+	d.cmdr = "http://localhost:2213"
 
 	if service.Interactive() {
 		d.debug = true
@@ -37,4 +39,5 @@ func main() {
 
 func (d *daemon) runAgent() {
 
+	d.checkinProcessor()
 }

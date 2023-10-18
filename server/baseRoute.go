@@ -6,6 +6,6 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-func (svc *service) baseHandler(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+func (d *serverDaemon) baseHandler(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
 
 }

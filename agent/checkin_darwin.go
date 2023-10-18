@@ -22,7 +22,7 @@ func (d *daemon) checkin() {
 		return
 	}
 
-	resp, err := d.hc.Post(d.cmdr+"api/checkin", "application/octet-stream", b)
+	resp, err := d.hc.Post(d.cmdr+"api/v1/checkin", "application/octet-stream", b)
 	if checkError(err) {
 		return
 	}
@@ -42,7 +42,7 @@ func (d *daemon) sendSystemData() {
 		return
 	}
 
-	resp, err := d.hc.Post(d.cmdr+"api/systenData", "application/octet-stream", b)
+	resp, err := d.hc.Post(d.cmdr+"api/v1/systenData", "application/octet-stream", b)
 	if checkError(err) {
 		return
 	}

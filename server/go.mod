@@ -1,4 +1,4 @@
-module fc-server
+module fc_server
 
 go 1.21.0
 

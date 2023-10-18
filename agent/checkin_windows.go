@@ -17,3 +17,6 @@ func (d *daemon) checkin() {
 	defer resp.Body.Close()
 
 }
+
+// use msinfo32 /nfo C:\Windows\temp\output.xml
+// or use powershell: get-ciminstance -class win32_operatingsystem | convertto-json > C:\Windows\temp\output.json

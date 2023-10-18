@@ -11,11 +11,11 @@ type navItem struct {
 	ID   int
 }
 
-func (svc *service) leftNavHandler(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+func (d *serverDaemon) leftNavHandler(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
 
 	var navItems []navItem
 
-	agents := svc.getAgents(50, 0)
+	agents := d.getAgents(50, 0)
 
 	for _, a := range agents {
 		var ni navItem
@@ -24,12 +24,12 @@ func (svc *service) leftNavHandler(w http.ResponseWriter, r *http.Request, param
 		navItems = append(navItems, ni)
 	}
 
-	err := svc.templates.ExecuteTemplate(w, "leftNav", navItems)
+	err := d.templates.ExecuteTemplate(w, "leftNav", navItems)
 	if checkError(err) {
 		return
 	}
 }
 
-func (svc *service) viewAgentHandler(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+func (d *serverDaemon) viewAgentHandler(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
 
 }

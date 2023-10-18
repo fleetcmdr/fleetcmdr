@@ -12,18 +12,20 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-type service struct {
+type serverDaemon struct {
 	hc        http.Client
+	hs        http.Server
 	router    *httprouter.Router
 	templates *template.Template
 	db        *sql.DB
 }
 
-var svc *service
-
 func parseTemplates() *template.Template {
 	templ := template.New("")
 	err := filepath.Walk("./templates", func(path string, info os.FileInfo, err error) error {
+		if info.IsDir() {
+			return nil
+		}
 		_, err = templ.ParseFiles(path)
 		if err != nil {
 			log.Println(err)
@@ -41,8 +43,29 @@ func parseTemplates() *template.Template {
 
 func main() {
 
-	svc.db = InitializeMySQLDatabase("localhost", "fleetcmdr", "root", os.Getenv("FLEETCMDR_MYSQL_ROOT_PASS"))
-	svc.router = httprouter.New()
-	svc.templates = parseTemplates()
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
+	d := &serverDaemon{}
+
+	d.db = InitializeMySQLDatabase("localhost", "fleetcmdr", "root", os.Getenv("FLEETCMDR_MYSQL_ROOT_PASS"))
+	d.router = httprouter.New()
+	d.templates = parseTemplates()
+
+	d.hs = http.Server{
+		Addr:    "localhost:2213",
+		Handler: d.router,
+	}
+
+	log.Printf("Binding routes...")
+
+	d.bindRoutes()
+
+	log.Printf("Starting server...")
+	err := d.hs.ListenAndServe()
+	if checkError(err) {
+		return
+	}
+
+	log.Printf("Shutting down...")
 
 }

@@ -1,4 +1,4 @@
-module fc-agent
+module fc_agent
 
 go 1.21.0
 
