@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func (d *daemon) checkin() {
+func (d *agentDaemon) checkin() {
 
 	var data checkinData
 
@@ -22,7 +22,7 @@ func (d *daemon) checkin() {
 		return
 	}
 
-	resp, err := d.hc.Post(d.cmdr+"api/v1/checkin", "application/octet-stream", b)
+	resp, err := d.hc.Post("http://localhost:2213/api/v1/checkin", "application/octet-stream", b)
 	if checkError(err) {
 		return
 	}
@@ -30,7 +30,7 @@ func (d *daemon) checkin() {
 
 }
 
-func (d *daemon) sendSystemData() {
+func (d *agentDaemon) sendSystemData() {
 	var data systemData
 	data.ID = d.ID
 	data.Payload = getSystemData()

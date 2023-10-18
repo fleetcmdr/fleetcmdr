@@ -17,15 +17,15 @@ type semver struct {
 	Patch int
 }
 
-func newDaemon() *daemon {
-	d := &daemon{}
+func newDaemon() *agentDaemon {
+	d := &agentDaemon{}
 	d.hc.Timeout = time.Minute * 2
 	d.hc.Transport = &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
 
 	return d
 }
 
-func (d *daemon) Start(s service.Service) error {
+func (d *agentDaemon) Start(s service.Service) error {
 	err := s.Start()
 	if checkError(err) {
 		return err
@@ -34,7 +34,7 @@ func (d *daemon) Start(s service.Service) error {
 	return nil
 }
 
-func (d *daemon) Stop(s service.Service) error {
+func (d *agentDaemon) Stop(s service.Service) error {
 	err := s.Stop()
 	if checkError(err) {
 		return err
@@ -48,24 +48,24 @@ func deployInstaller() {
 	d.daemonCfg = getPlatformUpdaterConfig()
 	var err error
 
-	d.service, err = service.New(d, d.daemonCfg)
+	d.daemon, err = service.New(d, d.daemonCfg)
 	if checkError(err) {
 		return
 	}
 
-	err = d.service.Install()
+	err = d.daemon.Install()
 	if checkError(err) {
 		return
 	}
 
-	err = d.service.Start()
+	err = d.daemon.Start()
 	if checkError(err) {
 		return
 	}
 
 }
 
-func (d *daemon) downloaInstaller() (err error) {
+func (d *agentDaemon) downloaInstaller() (err error) {
 
 	log.Printf("Attempting to download agent from '%s'", d.programUrl.String())
 	resp, err := d.hc.Get(d.programUrl.String())

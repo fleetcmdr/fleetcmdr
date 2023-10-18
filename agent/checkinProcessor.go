@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-func (d *daemon) checkinProcessor() {
+func (d *agentDaemon) checkinProcessor() {
 
 	t := time.NewTicker(time.Minute)
 	systemDataCheckinTicker := time.NewTimer(time.Until(d.lastSystemDataCheckin.Add(time.Hour)))

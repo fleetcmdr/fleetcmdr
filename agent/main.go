@@ -9,10 +9,10 @@ import (
 	"github.com/kardianos/service"
 )
 
-type daemon struct {
+type agentDaemon struct {
 	ID                    int
 	daemonCfg             *service.Config
-	service               service.Service
+	daemon                service.Service
 	hc                    http.Client
 	programUrl            url.URL
 	installPath           string
@@ -37,7 +37,7 @@ func main() {
 
 }
 
-func (d *daemon) runAgent() {
+func (d *agentDaemon) runAgent() {
 
 	d.checkinProcessor()
 }

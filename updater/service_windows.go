@@ -15,3 +15,13 @@ func getPlatformAgentConfig() *service.Config {
 		WorkingDirectory: "C:\\Windows\\System32",
 	}
 }
+
+func getPlatformUpdaterConfig() *service.Config {
+	return &service.Config{
+		Name:             "FleetCmdrInstaller",
+		DisplayName:      "FleetCmdr Installer",
+		Description:      "IT Fleet Command Installer Service",
+		Executable:       "C:\\ProgramData\\FleetCmdr\\fc_updater.exe",
+		WorkingDirectory: "C:\\Windows\\System32",
+	}
+}

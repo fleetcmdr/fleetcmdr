@@ -1,6 +1,6 @@
 package main
 
-func (d *daemon) checkin() {
+func (d *agentDaemon) checkin() {
 
 	var data checkinData
 

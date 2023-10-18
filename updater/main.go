@@ -24,6 +24,19 @@ type updaterDaemon struct {
 	version     semver
 }
 
+type agentDaemon struct {
+	ID                    int
+	daemonCfg             *service.Config
+	daemon                service.Service
+	hc                    http.Client
+	programUrl            url.URL
+	installPath           string
+	version               semver
+	debug                 bool
+	cmdr                  string
+	lastSystemDataCheckin time.Time
+}
+
 type semver struct {
 	Major int
 	Minor int
@@ -45,36 +58,58 @@ func main() {
 	// largely just going to sit around and wait until a newer agent is available
 	// checking every 24 hours for new agent
 	// localhost listener allows agent to poke and perform on-demand agent updates
-	d := newDaemon()
-	d.programUrl.Scheme = "http://"
-	d.programUrl.Host = "localhost:2213"
-	d.programUrl.Path = fmt.Sprintf("/static/agent/%s/fc_agent", runtime.GOOS)
-	d.daemonCfg = getPlatformAgentConfig()
+	ud := newDaemon()
+	ud.programUrl.Scheme = "http://"
+	ud.programUrl.Host = "localhost:2213"
+	ud.programUrl.Path = fmt.Sprintf("/static/downloads/agent/%s/fc_updater", runtime.GOOS)
+	ud.daemonCfg = getPlatformAgentConfig()
 	var err error
-	d.daemon, err = service.New(d, d.daemonCfg)
+	ud.daemon, err = service.New(ud, ud.daemonCfg)
+	if checkError(err) {
+		return
+	}
+
+	ad := &agentDaemon{}
+	ad.programUrl.Scheme = "http://"
+	ad.programUrl.Host = "localhost:2213"
+	ad.programUrl.Path = fmt.Sprintf("/static/downloads/agent/%s/fc_agent", runtime.GOOS)
+	ad.daemonCfg = getPlatformUpdaterConfig()
+	ad.daemon, err = service.New(ad, ad.daemonCfg)
 	if checkError(err) {
 		return
 	}
 
 	if service.Interactive() {
-		err = d.daemon.Install()
+		err = ad.daemon.Stop()
 		if checkError(err) {
-			return
+			//return
 		}
 
-		err = d.daemon.Start()
+		err = ad.daemon.Uninstall()
+		if checkError(err) {
+			//return
+		}
+
+		err = ad.daemon.Install()
+		if checkError(err) {
+			//return
+		}
+
+		err = ad.daemon.Start()
 		if checkError(err) {
 			return
 		}
-	} else {
-		t := time.NewTicker(time.Hour * 25)
-		for {
-			select {
-			case <-t.C:
-				err = d.checkForUpdates()
-				if checkError(err) {
-					//return
-				}
+		log.Printf("Service started")
+		return
+	}
+
+	t := time.NewTicker(time.Hour * 25)
+	for {
+		select {
+		case <-t.C:
+			err = ud.checkForUpdates()
+			if checkError(err) {
+				//return
 			}
 		}
 	}
@@ -86,6 +121,14 @@ func (d *updaterDaemon) Start(s service.Service) error {
 }
 
 func (d *updaterDaemon) Stop(s service.Service) error {
+	return nil
+}
+
+func (d *agentDaemon) Start(s service.Service) error {
+	return nil
+}
+
+func (d *agentDaemon) Stop(s service.Service) error {
 	return nil
 }
 
