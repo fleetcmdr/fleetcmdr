@@ -23,3 +23,5 @@ go.work
 fc_agent
 fc_updater
 *.sh
+*.xml
+*.json

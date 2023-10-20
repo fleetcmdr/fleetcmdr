@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -8,6 +9,16 @@ import (
 
 	"github.com/kardianos/service"
 )
+
+const (
+	versionMajor = 0
+	versionMinor = 0
+	versionPatch = 1
+)
+
+func (v semver) string() string {
+	return fmt.Sprintf("%d.%d.%d", v.Major, v.Minor, v.Patch)
+}
 
 type agentDaemon struct {
 	ID                    int
@@ -18,19 +29,24 @@ type agentDaemon struct {
 	installPath           string
 	version               semver
 	debug                 bool
-	cmdr                  string
+	cmdHost               string
 	lastSystemDataCheckin time.Time
+	systemData            any
 }
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
+	log.Printf("Agent starting...")
+
+	cmdHost := "localhost"
 	d := newDaemon()
 	d.daemonCfg = getPlatformAgentConfig()
-	d.cmdr = "http://localhost:2213"
+	d.cmdHost = fmt.Sprintf("http://%s:2213", cmdHost)
 
 	if service.Interactive() {
 		d.debug = true
+		d.runAgent()
 	} else {
 		d.runAgent()
 	}
@@ -38,6 +54,6 @@ func main() {
 }
 
 func (d *agentDaemon) runAgent() {
-
+	log.Printf("Agent running")
 	d.checkinProcessor()
 }

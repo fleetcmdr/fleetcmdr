@@ -1,20 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
-	"encoding/hex"
-	"os/exec"
-	"strings"
-	"text/scanner"
-	"unicode"
 )
 
 func quotedStringSplit(input string) []string {
-	s := scanner.Scanner{}
 
 	b := bytes.NewBuffer([]byte(input))
-
-	s.Init(b)
+	s := bufio.NewScanner(b)
 
 	var output []string
 
@@ -22,52 +16,38 @@ func quotedStringSplit(input string) []string {
 	var modeDoubleQuote bool
 
 	var outBuf string
-	for tok := s.Scan(); tok != scanner.EOF; tok = s.Scan() {
-		switch tok {
-		case '"':
+
+	s.Split(bufio.ScanWords)
+
+	for s.Scan() {
+		t := s.Text()
+		//log.Printf("Token: %s", s.Text())
+		outBuf = ""
+		switch t {
+		case `"`:
 			modeDoubleQuote = !modeDoubleQuote
 			if modeDoubleQuote {
-				outBuf = outBuf + s.TokenText()
+				outBuf = outBuf + t
 			} else {
 				output = append(output, outBuf)
 			}
-		case '\'':
+		case `'`:
 			modeSingleQuote = !modeSingleQuote
 			if modeSingleQuote {
-				outBuf = outBuf + s.TokenText()
+				outBuf = outBuf + t
 			} else {
 				output = append(output, outBuf)
 			}
-		case ' ':
+		case " ":
 			if !modeSingleQuote && !modeDoubleQuote {
 				output = append(output, outBuf)
 			}
 		default:
-			outBuf = outBuf + s.TokenText()
+			outBuf = outBuf + t
+			output = append(output, outBuf)
 		}
+
 	}
 
 	return output
-}
-
-func run(command string) (string, error) {
-
-	strings.Split(command, " ")
-	args := quotedStringSplit(command)
-	cmd := exec.Command(args[0], args[1:]...)
-	out, err := cmd.CombinedOutput()
-	if checkError(err) {
-		return "", err
-	}
-
-	var safedOutput strings.Builder
-	for b := range out {
-		if !unicode.IsPrint(rune(b)) {
-			safedOutput.WriteString(hex.EncodeToString([]byte{byte(b)}))
-		} else {
-			safedOutput.WriteByte(byte(b))
-		}
-	}
-
-	return string(out), err
 }

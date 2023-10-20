@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"runtime"
 	"time"
 
@@ -59,10 +60,10 @@ func main() {
 	// checking every 24 hours for new agent
 	// localhost listener allows agent to poke and perform on-demand agent updates
 	ud := newDaemon()
-	ud.programUrl.Scheme = "http://"
+	ud.programUrl.Scheme = "http"
 	ud.programUrl.Host = "localhost:2213"
-	ud.programUrl.Path = fmt.Sprintf("/static/downloads/agent/%s/fc_updater", runtime.GOOS)
-	ud.daemonCfg = getPlatformAgentConfig()
+	ud.programUrl.Path = fmt.Sprintf("/static/downloads/updater/%s/fc_updater", runtime.GOOS)
+	ud.daemonCfg = getPlatformUpdaterConfig()
 	var err error
 	ud.daemon, err = service.New(ud, ud.daemonCfg)
 	if checkError(err) {
@@ -70,10 +71,10 @@ func main() {
 	}
 
 	ad := &agentDaemon{}
-	ad.programUrl.Scheme = "http://"
+	ad.programUrl.Scheme = "http"
 	ad.programUrl.Host = "localhost:2213"
 	ad.programUrl.Path = fmt.Sprintf("/static/downloads/agent/%s/fc_agent", runtime.GOOS)
-	ad.daemonCfg = getPlatformUpdaterConfig()
+	ad.daemonCfg = getPlatformAgentConfig()
 	ad.daemon, err = service.New(ad, ad.daemonCfg)
 	if checkError(err) {
 		return
@@ -86,6 +87,11 @@ func main() {
 		}
 
 		err = ad.daemon.Uninstall()
+		if checkError(err) {
+			//return
+		}
+
+		err = download(ad.programUrl.String(), ad.daemonCfg.Executable)
 		if checkError(err) {
 			//return
 		}
@@ -107,7 +113,7 @@ func main() {
 	for {
 		select {
 		case <-t.C:
-			err = ud.checkForUpdates()
+			err = ad.checkForUpdates()
 			if checkError(err) {
 				//return
 			}
@@ -132,10 +138,12 @@ func (d *agentDaemon) Stop(s service.Service) error {
 	return nil
 }
 
-func (d *updaterDaemon) downloadAgent() (err error) {
+func download(endpoint, toPath string) (err error) {
 
-	log.Printf("Attempting to download agent from '%s'", d.programUrl.String())
-	resp, err := d.hc.Get(d.programUrl.String())
+	hc := &http.Client{Timeout: time.Minute * 2}
+
+	log.Printf("Attempting to download from '%s'", endpoint)
+	resp, err := hc.Get(endpoint)
 	if checkError(err) {
 		return
 	}
@@ -148,7 +156,12 @@ func (d *updaterDaemon) downloadAgent() (err error) {
 
 	log.Printf("Received %s file", BytesToHuman(int64(len(bodyBytes))))
 
-	f, err := os.Create(d.installPath)
+	err = os.MkdirAll(filepath.Dir(toPath), 0700)
+	if checkError(err) {
+		return
+	}
+
+	f, err := os.OpenFile(toPath, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0700)
 	if checkError(err) {
 		return
 	}
@@ -158,7 +171,7 @@ func (d *updaterDaemon) downloadAgent() (err error) {
 		return
 	}
 
-	log.Printf("Wrote %s to file at '%s'", BytesToHuman(int64(n)), d.installPath)
+	log.Printf("Wrote %s to file at '%s'", BytesToHuman(int64(n)), toPath)
 
 	err = f.Sync()
 	if checkError(err) {
@@ -189,7 +202,7 @@ func (d *updaterDaemon) installAgent() (err error) {
 	return
 }
 
-func (d *updaterDaemon) checkForUpdates() (err error) {
+func (d *agentDaemon) checkForUpdates() (err error) {
 
 	maxRetryWait, err := time.ParseDuration("8h")
 	if checkError(err) {
@@ -203,15 +216,26 @@ func (d *updaterDaemon) checkForUpdates() (err error) {
 
 	for {
 		log.Printf("Retrying download of agent")
-		err = d.downloadAgent()
+		err = download(d.programUrl.String(), d.daemonCfg.Executable)
 		if err == nil {
 			log.Printf("Agent download successful")
-			err = d.uninstallAgent()
+
+			err = d.daemon.Stop()
 			if checkError(err) {
-				return
+				//return
 			}
 
-			err = d.installAgent()
+			err = d.daemon.Uninstall()
+			if checkError(err) {
+				//return
+			}
+
+			err = d.daemon.Install()
+			if checkError(err) {
+				//return
+			}
+
+			err = d.daemon.Start()
 			if checkError(err) {
 				return
 			}

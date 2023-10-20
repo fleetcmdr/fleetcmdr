@@ -47,7 +47,7 @@ func main() {
 
 	d := &serverDaemon{}
 
-	d.db = InitializeMySQLDatabase("localhost", "fleetcmdr", "root", os.Getenv("FLEETCMDR_MYSQL_ROOT_PASS"))
+	d.db = InitializeMySQLDatabase("localhost", "fleetcmdr", os.Getenv("FLEETCMDR_MYSQL_USER"), os.Getenv("FLEETCMDR_MYSQL_PASS"))
 	d.router = httprouter.New()
 	d.templates = parseTemplates()
 

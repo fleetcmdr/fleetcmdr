@@ -22,6 +22,8 @@ func newDaemon() *agentDaemon {
 	d.hc.Timeout = time.Minute * 2
 	d.hc.Transport = &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
 
+	d.version = semver{Major: versionMajor, Minor: versionMinor, Patch: versionPatch}
+
 	return d
 }
 

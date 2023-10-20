@@ -21,8 +21,8 @@ func getPlatformAgentConfig() *service.Config {
 
 func getPlatformUpdaterConfig() *service.Config {
 	return &service.Config{
-		Name:             "FleetCmdrAgent",
-		DisplayName:      "FleetCmdr Agent",
+		Name:             "FleetCmdrUpdater",
+		DisplayName:      "FleetCmdr Updater",
 		Description:      "IT Fleet Command Platform",
 		Executable:       "/Applications/FleetCmdr/fc_updater",
 		WorkingDirectory: "/Applications/FleetCmdr",
