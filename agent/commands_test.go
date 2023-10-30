@@ -13,6 +13,13 @@ import (
 	"howett.net/plist"
 )
 
+func TestReadSystemData(t *testing.T){
+  _, err := readSystemData()  
+  if err != nil {
+    t.FailNow()
+  }
+}
+
 func TestQuotedStringSplit(t *testing.T) {
 	out := quotedStringSplit("stuff and things")
 	log.Printf("Output: %+v", out)
@@ -143,12 +150,12 @@ type ASPO struct {
 		} `json:"Ethernet,omitempty"`
 		Hardware  string `json:"hardware,omitempty"`
 		Interface string `json:"interface,omitempty"`
-		IPv4      struct {
-			ConfigMethod string `json:"ConfigMethod"`
-		} `json:"IPv4,omitempty"`
-		IPv6 struct {
-			ConfigMethod string `json:"ConfigMethod"`
-		} `json:"IPv6,omitempty"`
+		// IPv4      struct {
+			// ConfigMethod string `json:"ConfigMethod"`
+		// } `json:"IPv4,omitempty"`
+		// IPv6 struct {
+			// ConfigMethod string `json:"ConfigMethod"`
+		// } `json:"IPv6,omitempty"`
 		Proxies struct {
 			ExceptionsList []string `json:"ExceptionsList"`
 			FTPPassive     string   `json:"FTPPassive"`
@@ -168,7 +175,7 @@ type ASPO struct {
 			ServerAddresses []string `json:"ServerAddresses"`
 		} `json:"DNS,omitempty"`
 		IPAddress []string `json:"ip_address,omitempty"`
-		IPv40     struct {
+		IPv4     struct {
 			AdditionalRoutes []struct {
 				DestinationAddress string `json:"DestinationAddress"`
 				SubnetMask         string `json:"SubnetMask"`
@@ -183,38 +190,16 @@ type ASPO struct {
 			Router                     string   `json:"Router"`
 			SubnetMasks                []string `json:"SubnetMasks"`
 		} `json:"IPv4,omitempty"`
-		IPv60 struct {
+		IPv6 struct {
 			Addresses              []string `json:"Addresses"`
 			ConfigMethod           string   `json:"ConfigMethod"`
 			ConfirmedInterfaceName string   `json:"ConfirmedInterfaceName"`
 			InterfaceName          string   `json:"InterfaceName"`
 			PrefixLength           []int    `json:"PrefixLength"`
 		} `json:"IPv6,omitempty"`
-		DNS0 struct {
-			SearchDomains []string `json:"SearchDomains"`
-		} `json:"DNS,omitempty"`
-		IPv41 struct {
-			AdditionalRoutes []struct {
-				DestinationAddress string `json:"DestinationAddress"`
-				SubnetMask         string `json:"SubnetMask"`
-			} `json:"AdditionalRoutes"`
-			Addresses                  []string `json:"Addresses"`
-			ARPResolvedHardwareAddress string   `json:"ARPResolvedHardwareAddress"`
-			ARPResolvedIPAddress       string   `json:"ARPResolvedIPAddress"`
-			ConfigMethod               string   `json:"ConfigMethod"`
-			ConfirmedInterfaceName     string   `json:"ConfirmedInterfaceName"`
-			InterfaceName              string   `json:"InterfaceName"`
-			NetworkSignature           string   `json:"NetworkSignature"`
-			Router                     string   `json:"Router"`
-			SubnetMasks                []string `json:"SubnetMasks"`
-		} `json:"IPv4,omitempty"`
-		IPv61 struct {
-			Addresses              []string `json:"Addresses"`
-			ConfigMethod           string   `json:"ConfigMethod"`
-			ConfirmedInterfaceName string   `json:"ConfirmedInterfaceName"`
-			InterfaceName          string   `json:"InterfaceName"`
-			PrefixLength           []int    `json:"PrefixLength"`
-		} `json:"IPv6,omitempty"`
+		// DNS struct {
+			// SearchDomains []string `json:"SearchDomains"`
+		// } `json:"DNS,omitempty"`
 		SleepProxies []struct {
 			Name          string `json:"_name"`
 			MarginalPower int    `json:"MarginalPower"`
@@ -382,13 +367,6 @@ type ASPO struct {
 		SizeInBytes    int64  `json:"size_in_bytes"`
 		VolumeUUID     string `json:"volume_uuid"`
 		Writable       string `json:"writable"`
-		PhysicalDrive0 struct {
-			DeviceName       string `json:"device_name"`
-			IsInternalDisk   string `json:"is_internal_disk"`
-			MediaName        string `json:"media_name"`
-			PartitionMapType string `json:"partition_map_type"`
-			Protocol         string `json:"protocol"`
-		} `json:"physical_drive,omitempty"`
 	} `json:"SPStorageDataType"`
 	SPThunderboltDataType []struct {
 		Name           string `json:"_name"`

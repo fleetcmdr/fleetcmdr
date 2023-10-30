@@ -3,12 +3,12 @@ package main
 import (
 	"bytes"
 	"encoding/gob"
+	"encoding/json"
 	"fmt"
 	"log"
+	"runtime"
 	"strings"
 	"time"
-
-	"howett.net/plist"
 )
 
 func (d *agentDaemon) checkin() {
@@ -17,7 +17,6 @@ func (d *agentDaemon) checkin() {
 
 	data.ID = d.ID
 	data.Version = d.version
-	//data.Serial = d.getSystemData().SPHardwareDataType[0].SerialNumber
 
 	b := &bytes.Buffer{}
 	ge := gob.NewEncoder(b)
@@ -34,34 +33,39 @@ func (d *agentDaemon) checkin() {
 
 }
 
-func (d systemData) MarshalBinary() ([]byte, error) {
-	var b bytes.Buffer
-	fmt.Fprintln(&b, d)
-	return b.Bytes(), nil
-}
-
 func (d *agentDaemon) getSystemData() AppleSystemProfilerOutput {
 	return d.systemData.(AppleSystemProfilerOutput)
 }
 
 func (d *agentDaemon) sendSystemData() {
-	var data systemData
+	var data checkinData
 	data.ID = d.ID
-	//start := time.Now()
+
+	output, err := run("hostname")
+	if checkError(err) {
+		return
+	}
+
+	data.Hostname = output
+	data.OS = runtime.GOOS
+
+	// start := time.Now()
 	log.Printf("Reading system data...")
-	var err error
 	d.systemData, err = readSystemData()
 	if checkError(err) {
 		return
 	}
 	data.Payload = d.systemData
+  data.Version = d.version	
+  data.Serial = d.getSystemData().SPHardwareDataType[0].SerialNumber
 
-	//log.Printf("Got system data (took %s): %+v", time.Since(start).String(), d.getSystemData())
-	//log.Printf("Got serial: %s", d.getSystemData().SPHardwareDataType[0].SerialNumber)
+	// log.Printf("Got system data (took %s): %+v", time.Since(start).String(), d.getSystemData())
+	log.Printf("Got serial: %s", d.getSystemData().SPHardwareDataType[0].SerialNumber)
 	//log.Printf("System data: %+v", d.getSystemData())
 
 	b := &bytes.Buffer{}
 	gob.Register(data)
+	gob.Register(data.Payload)
 	ge := gob.NewEncoder(b)
 	err = ge.Encode(data)
 	if checkError(err) {
@@ -73,19 +77,45 @@ func (d *agentDaemon) sendSystemData() {
 		return
 	}
 	defer resp.Body.Close()
+
+	var cr checkinResponse
+
+	gob.Register(cr)
+	gd := gob.NewDecoder(resp.Body)
+
+	err = gd.Decode(&cr)
+	if checkError(err) {
+		return
+	}
+
+	d.ID = cr.ID
+
+	for _, c := range cr.Commands {
+		log.Printf("Received command named '%s' with arguments: %#v", c.Name, c.Arguments)
+	}
+
 }
 
+type Command struct {
+	Name      string
+	Arguments []string
+}
+
+type checkinResponse struct {
+	ID       int
+	Commands []Command
+}
 
 type AppleSystemProfilerOutput struct {
 	SPApplicationsDataType []struct {
-		Name         string    `json:"_name"`
-		ArchKind     string    `json:"arch_kind"`
-		LastModified string `json:"lastModified"`
-		ObtainedFrom string    `json:"obtained_from"`
-		Path         string    `json:"path"`
-		SignedBy     []string  `json:"signed_by,omitempty"`
-		Version      string    `json:"version,omitempty"`
-		Info         string    `json:"info,omitempty"`
+		Name         string   `json:"_name"`
+		ArchKind     string   `json:"arch_kind"`
+		LastModified string   `json:"lastModified"`
+		ObtainedFrom string   `json:"obtained_from"`
+		Path         string   `json:"path"`
+		SignedBy     []string `json:"signed_by,omitempty"`
+		Version      string   `json:"version,omitempty"`
+		Info         string   `json:"info,omitempty"`
 	} `json:"SPApplicationsDataType"`
 	SPConfigurationProfileDataType []struct {
 		Items []struct {
@@ -222,7 +252,7 @@ type AppleSystemProfilerOutput struct {
 			SearchDomains   []string `json:"SearchDomains"`
 			ServerAddresses []string `json:"ServerAddresses"`
 		} `json:"DNS,omitempty"`
-		IPAddress []string `json:"ip_address,omitempty"`
+		IPAddress    []string `json:"ip_address,omitempty"`
 		SleepProxies []struct {
 			Name          string `json:"_name"`
 			MarginalPower int    `json:"MarginalPower"`
@@ -322,11 +352,11 @@ type AppleSystemProfilerOutput struct {
 		SppowerBatteryIsCharging        string `json:"sppower_battery_is_charging,omitempty"`
 		Items                           []struct {
 			Items []struct {
-				AppPID      int       `json:"appPID"`
-				Eventtype   string    `json:"eventtype"`
-				Scheduledby string    `json:"scheduledby"`
+				AppPID      int    `json:"appPID"`
+				Eventtype   string `json:"eventtype"`
+				Scheduledby string `json:"scheduledby"`
 				Time        string `json:"time"`
-				UserVisible bool      `json:"UserVisible"`
+				UserVisible bool   `json:"UserVisible"`
 			} `json:"_items"`
 			Name string `json:"_name"`
 		} `json:"_items,omitempty"`
@@ -387,9 +417,9 @@ type AppleSystemProfilerOutput struct {
 			Protocol         string `json:"protocol"`
 			SmartStatus      string `json:"smart_status"`
 		} `json:"physical_drive,omitempty"`
-		SizeInBytes    int64  `json:"size_in_bytes"`
-		VolumeUUID     string `json:"volume_uuid"`
-		Writable       string `json:"writable"`
+		SizeInBytes int64  `json:"size_in_bytes"`
+		VolumeUUID  string `json:"volume_uuid"`
+		Writable    string `json:"writable"`
 	} `json:"SPStorageDataType"`
 	SPThunderboltDataType []struct {
 		Name           string `json:"_name"`
@@ -439,7 +469,6 @@ type AppleSystemProfilerOutput struct {
 	} `json:"SPUSBDataType"`
 }
 
-
 //func (a AppleSystemProfilerOutput) UnmarshalJSON(b []byte) error {
 //	f := make(map[string]any)
 //	err := json.Unmarshal(b, &f)
@@ -454,42 +483,47 @@ type AppleSystemProfilerOutput struct {
 
 func readSystemData() (AppleSystemProfilerOutput, error) {
 
-	desirous := []string{
-		"SPHardware",
-		"SPApplications",
-		"SPConfigurationProfile",
-		"SPDisabledSoftware",
-		"SPDisplays",
-		"SPEthernet",
-		"SPFirewall",
-		"SPHardware",
-		"SPInstallHistory",
-		"SPMemory",
-		"SPNetwork",
-		"SPNetworkVolume",
-		"SPNVMe",
-		"SPPower",
-		"SPPrefPane",
-		"SPPrinters",
-		"SPSecureElement",
-		"SPSoftware",
-		"SPStorage",
-		"SPThunderbolt",
-		"SPUniversalAccess",
-		"SPUSB",
-	}
+	// desirous := []string{
+	// 	"SPHardwareDataType",
+	// 	"SPApplicationsDataType",
+	// 	"SPConfigurationProfileDataType",
+	// 	"SPDisabledSoftwareDataType",
+	// 	"SPDisplaysDataType",
+	// 	"SPEthernetDataType",
+	// 	"SPFirewallDataType",
+	// 	"SPHardwareDataType",
+	// 	"SPInstallHistoryDataType",
+	// 	"SPMemoryDataType",
+	// 	"SPNetworkDataType",
+	// 	"SPNetworkVolumeDataType",
+	// 	"SPNVMeDataType",
+	// 	"SPPowerDataType",
+	// 	"SPPrefPaneDataType",
+	// 	"SPPrintersDataType",
+	// 	"SPSecureElementDataType",
+	// 	"SPSoftwareDataType",
+	// 	"SPStorageDataType",
+	// 	"SPThunderboltDataType",
+	// 	"SPUniversalAccessDataType",
+	// 	"SPUSBDataType",
+	// }
 
-	xmlData, err := run(fmt.Sprintf("/usr/sbin/system_profiler -xml %s", strings.Join(desirous, " ")))
+	desirous := []string{"SPHardwareDataType"}
+	// fileName := "./systemprofiler.json"
+
+	jsonData, err := run(fmt.Sprintf("/usr/sbin/system_profiler -json %s", strings.Join(desirous, " ")))
 	if checkError(err) {
 		return AppleSystemProfilerOutput{}, err
 	}
 
+	// log.Printf("%s", jsonData)
+
 	//log.Printf("XML: %s", xmlData)
 
-	//jsonData, err := os.ReadFile("systemprofiler.json")
-	//if checkError(err) {
-	//	return AppleSystemProfilerOutput{}, err
-	//}
+	// jsonData, err := os.ReadFile(fileName)
+	// if checkError(err) {
+	// return AppleSystemProfilerOutput{}, err
+	// }
 
 	var aspo AppleSystemProfilerOutput
 
@@ -497,7 +531,8 @@ func readSystemData() (AppleSystemProfilerOutput, error) {
 
 	//var stuff thing
 
-	_, err = plist.Unmarshal([]byte(xmlData), &aspo)
+	// _, err = plist.Unmarshal([]byte(jsonData), &aspo)
+	err = json.Unmarshal([]byte(jsonData), &aspo)
 	if checkError(err) {
 		return aspo, err
 	}
@@ -514,7 +549,7 @@ func readSystemData() (AppleSystemProfilerOutput, error) {
 	//	return AppleSystemProfilerOutput{}, err
 	//}
 
-	log.Printf("Stuff: %#v", aspo)
+	// log.Printf("Stuff: %#v", aspo)
 
 	//for _, v := range aspo.([]interface{}) {
 	//	vv := v.(map[string]interface{})

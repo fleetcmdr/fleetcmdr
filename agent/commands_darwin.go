@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/hex"
+	"log"
 	"os/exec"
 	"strings"
 	"unicode"
@@ -10,7 +11,7 @@ import (
 func run(command string) (string, error) {
 
 	//command = fmt.Sprintf(`$(/bin/bash -c "%s")`, command)
-	//log.Printf("Running command \"%s\"", command)
+	log.Printf("Running command \"%s\"", command)
 
 	args := quotedStringSplit(command)
 	//log.Printf("%+v", args)

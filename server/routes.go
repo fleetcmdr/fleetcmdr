@@ -12,7 +12,7 @@ func (d *serverDaemon) bindRoutes() {
 	d.router.GET("/api/v1/parts/agents/:id", d.viewAgentHandler)
 
 	d.router.POST("/api/v1/checkin", d.checkinHandler)
-	d.router.POST("/api/v1/systemData", d.systemDataHandler)
+	d.router.POST("/api/v1/sendSystemData", d.systemDataHandler)
 
 	d.router.NotFound = http.HandlerFunc(d.staticHandler)
 
