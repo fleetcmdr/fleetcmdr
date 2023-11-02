@@ -25,3 +25,5 @@ fc_updater
 *.sh
 *.xml
 *.json
+.ds_store
+.idea

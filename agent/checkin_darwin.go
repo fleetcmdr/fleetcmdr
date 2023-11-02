@@ -18,6 +18,11 @@ func (d *agentDaemon) checkin() {
 	data.ID = d.ID
 	data.Version = d.version
 
+	sd := d.getSystemData()
+	if sd != nil {
+		data.Serial = sd.SPHardwareDataType[0].SerialNumber
+	}
+
 	b := &bytes.Buffer{}
 	ge := gob.NewEncoder(b)
 	err := ge.Encode(data)
@@ -33,8 +38,14 @@ func (d *agentDaemon) checkin() {
 
 }
 
-func (d *agentDaemon) getSystemData() AppleSystemProfilerOutput {
-	return d.systemData.(AppleSystemProfilerOutput)
+func (d *agentDaemon) getSystemData() *AppleSystemProfilerOutput {
+
+	v, ok := d.systemData.(AppleSystemProfilerOutput)
+	if ok {
+		return &v
+	} else {
+		return nil
+	}
 }
 
 func (d *agentDaemon) sendSystemData() {
@@ -46,6 +57,8 @@ func (d *agentDaemon) sendSystemData() {
 		return
 	}
 
+	d.hostname = output
+
 	data.Hostname = output
 	data.OS = runtime.GOOS
 
@@ -56,8 +69,13 @@ func (d *agentDaemon) sendSystemData() {
 		return
 	}
 	data.Payload = d.systemData
-  data.Version = d.version	
-  data.Serial = d.getSystemData().SPHardwareDataType[0].SerialNumber
+	data.Version = d.version
+	sd := d.getSystemData()
+	if sd == nil {
+		log.Printf("System data is nil")
+		return
+	}
+	data.Serial = sd.SPHardwareDataType[0].SerialNumber
 
 	// log.Printf("Got system data (took %s): %+v", time.Since(start).String(), d.getSystemData())
 	log.Printf("Got serial: %s", d.getSystemData().SPHardwareDataType[0].SerialNumber)
@@ -65,7 +83,7 @@ func (d *agentDaemon) sendSystemData() {
 
 	b := &bytes.Buffer{}
 	gob.Register(data)
-	gob.Register(data.Payload)
+	gob.Register(*sd)
 	ge := gob.NewEncoder(b)
 	err = ge.Encode(data)
 	if checkError(err) {
@@ -509,21 +527,11 @@ func readSystemData() (AppleSystemProfilerOutput, error) {
 	// }
 
 	desirous := []string{"SPHardwareDataType"}
-	// fileName := "./systemprofiler.json"
 
 	jsonData, err := run(fmt.Sprintf("/usr/sbin/system_profiler -json %s", strings.Join(desirous, " ")))
 	if checkError(err) {
 		return AppleSystemProfilerOutput{}, err
 	}
-
-	// log.Printf("%s", jsonData)
-
-	//log.Printf("XML: %s", xmlData)
-
-	// jsonData, err := os.ReadFile(fileName)
-	// if checkError(err) {
-	// return AppleSystemProfilerOutput{}, err
-	// }
 
 	var aspo AppleSystemProfilerOutput
 

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/gob"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -42,6 +43,7 @@ func (d *serverDaemon) checkinHandler(w http.ResponseWriter, r *http.Request, pa
 	if checkError(err) {
 		return
 	}
+	defer r.Body.Close()
 
 	b := bytes.NewReader(bodyBytes)
 	gd := gob.NewDecoder(b)
@@ -53,7 +55,7 @@ func (d *serverDaemon) checkinHandler(w http.ResponseWriter, r *http.Request, pa
 
 	log.Printf("Agent (%d) with serial '%s' and version '%s'", cd.ID, cd.Serial, cd.Version.string())
 
-	q := "INSERT INTO checkins (agent_id, v_major, v_minor, v_patch) VALUES (?,?,?,?)"
+	q := `INSERT INTO checkins (agent_id, v_major, v_minor, v_patch) VALUES ($1,$2,$3,$4)`
 	_, err = d.db.ExecContext(context.Background(), q, cd.ID, cd.Version.Major, cd.Version.Minor, cd.Version.Patch)
 	if checkError(err) {
 		return
@@ -65,40 +67,54 @@ func (d *serverDaemon) systemDataHandler(w http.ResponseWriter, r *http.Request,
 
 	var cd checkinData
 
-	gd := gob.NewDecoder(r.Body)
+	bodyBytes, err := io.ReadAll(r.Body)
+	if checkError(err) {
+		return
+	}
+
+	b := bytes.NewReader(bodyBytes)
+	gd := gob.NewDecoder(b)
 	defer r.Body.Close()
 
 	var aspo AppleSystemProfilerOutput
 	gob.Register(aspo)
 
-	err := gd.Decode(&cd)
+	err = gd.Decode(&cd)
 	if checkError(err) {
 		return
 	}
 
-	// log.Printf("Checkin with system data: %#v", cd)
+	jsonBytes, err := json.Marshal(cd.Payload)
+	if checkError(err) {
+		return
+	}
+
+	log.Printf("Checkin with system data: %+v", cd)
 
 	aspo = cd.Payload.(AppleSystemProfilerOutput)
 
 	log.Printf("Agent with serial '%s'", aspo.SPHardwareDataType[0].SerialNumber)
 
-	q := "INSERT INTO agents (id, serial, os, hostname) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE os = ?, hostname = ?, serial = ?"
-	res, err := d.db.ExecContext(context.Background(), q, cd.ID, cd.Serial, cd.OS, cd.Hostname, cd.OS, cd.Hostname, cd.Serial)
+	var assignedID int
+
+	// q := "INSERT INTO agents (id, serial, os, hostname) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE os = ?, hostname = ?"
+	q := `INSERT INTO agents (id, serial, os, host_name, system_data) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (serial) DO UPDATE SET os = $6, host_name = $7, system_data = $8  RETURNING id`
+	err = d.db.QueryRowContext(context.Background(), q, cd.ID, cd.Serial, cd.OS, cd.Hostname, string(jsonBytes), cd.OS, cd.Hostname, string(jsonBytes)).Scan(&assignedID)
 	if checkError(err) {
 		return
 	}
 
-	assignedID, err := res.LastInsertId()
-	if checkError(err) {
-		return
-	}
+	// assignedID, err := res.LastInsertId()
+	// if checkError(err) {
+	// 	return
+	// }
 
-	if cd.ID == 0 && assignedID == 0 {
-		q = "SELECT id FROM agents WHERE serial = ?"
-		err = d.db.QueryRow(q, cd.Serial).Scan(&assignedID)
-	}
+	// if cd.ID == 0 && assignedID == 0 {
+	// q = "SELECT id FROM agents WHERE serial = $1"
+	// err = d.db.QueryRow(q, cd.Serial).Scan(&assignedID)
+	// }
 
-	q = "INSERT INTO checkins (agent_id, v_major, v_minor, v_patch) VALUES (?,?,?,?)"
+	q = "INSERT INTO checkins (agent_id, v_major, v_minor, v_patch) VALUES ($1,$2,$3,$4)"
 	_, err = d.db.ExecContext(context.Background(), q, assignedID, cd.Version.Major, cd.Version.Minor, cd.Version.Patch)
 	if checkError(err) {
 		return

@@ -1,0 +1,41 @@
+{{ define "leftNav" }}
+        <h3>Agents</h3>
+        <hr/>
+        <ul>
+        {{ range . }}
+            <li hx-get="/api/v1/parts/agent/{{ .ID }}" hx-target="#main-content"  hx-on="click">{{ .Name }}</li>
+        {{ end }}
+        </ul>
+{{ end }}
+
+{{ define "agent-darwin" }}
+<table class="table">
+<tr>
+    <th>Name</th>
+    <th>Value</th>
+</tr>
+<tr>
+    <td>Hostname</td><td>{{ .AgentData.Name }}</td>
+</tr>
+<tr>
+    <td>Serial</td><td>{{ .AgentData.Serial }}</td>
+</tr>
+<tr>
+    {{ with $hardware := index .SystemData.SPHardwareDataType 0 }}
+    <td>Manufacturer</td><td>Apple</td>
+</tr>
+<tr>
+    <td>Model</td><td>{{$hardware.MachineName}}</td>
+</tr>
+<tr>
+    <td>CPU Type</td><td>{{$hardware.ChipType}}</td>
+</tr>
+<tr>
+    <td>Memory</td><td>{{$hardware.PhysicalMemory}} RAM</td>
+</tr>
+<tr>
+    <td>Model Number</td><td>{{$hardware.ModelNumber}}</td>
+    {{ end }}
+</tr>
+</table>
+{{ end }}

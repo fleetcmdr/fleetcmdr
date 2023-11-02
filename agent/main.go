@@ -22,6 +22,7 @@ func (v semver) string() string {
 
 type agentDaemon struct {
 	ID                    int
+	hostname              string
 	daemonCfg             *service.Config
 	daemon                service.Service
 	hc                    http.Client

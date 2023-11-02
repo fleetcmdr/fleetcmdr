@@ -8,7 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
-	_ "github.com/go-sql-driver/mysql"
+	// _ "github.com/go-sql-driver/mysql"
+	_ "github.com/jackc/pgx/v5"
 	"github.com/julienschmidt/httprouter"
 )
 
@@ -23,6 +24,7 @@ type serverDaemon struct {
 func parseTemplates() *template.Template {
 	templ := template.New("")
 	err := filepath.Walk("./templates", func(path string, info os.FileInfo, err error) error {
+
 		if info.IsDir() {
 			return nil
 		}
@@ -47,7 +49,8 @@ func main() {
 
 	d := &serverDaemon{}
 
-	d.db = InitializeMySQLDatabase("localhost", "fleetcmdr", os.Getenv("FLEETCMDR_MYSQL_USER"), os.Getenv("FLEETCMDR_MYSQL_PASS"))
+	// d.db = InitializeMySQLDatabase("localhost", "fleetcmdr", os.Getenv("FLEETCMDR_MYSQL_USER"), os.Getenv("FLEETCMDR_MYSQL_PASS"))
+	d.db = InitializePgSQLDatabase("localhost", "fleetcmdr", os.Getenv("FLEETCMDR_PGSQL_USER"), os.Getenv("FLEETCMDR_PGSQL_PASS"))
 	d.router = httprouter.New()
 	d.templates = parseTemplates()
 

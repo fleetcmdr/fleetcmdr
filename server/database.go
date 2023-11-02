@@ -9,6 +9,7 @@ import (
 
 	_ "github.com/denisenkom/go-mssqldb"
 	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/lib/pq"
 )
 
 func InitializeMSSQLDatabase(host, name, user, pass, appname string) *sql.DB {
@@ -52,4 +53,22 @@ func InitializeMySQLDatabase(host, name, user, pass string) *sql.DB {
 	db.SetMaxIdleConns(50)
 	db.SetMaxOpenConns(100)
 	return db
+}
+
+func InitializePgSQLDatabase(host, name, user, pass string) *sql.DB {
+
+	var db *sql.DB
+	var err error
+
+	connStr := fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=disable", user, pass, host, name)
+	db, err = sql.Open("postgres", connStr)
+	if checkError(err) {
+		return nil
+	}
+
+	db.SetMaxOpenConns(50)
+	db.SetMaxIdleConns(100)
+
+	return db
+
 }
