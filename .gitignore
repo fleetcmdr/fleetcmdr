@@ -27,3 +27,4 @@ fc_updater
 *.json
 .ds_store
 .idea
+fc_*
