@@ -9,33 +9,109 @@
 {{ end }}
 
 {{ define "agent-darwin" }}
-<table class="table">
-<tr>
-    <th>Name</th>
-    <th>Value</th>
-</tr>
-<tr>
-    <td>Hostname</td><td>{{ .AgentData.Name }}</td>
-</tr>
-<tr>
-    <td>Serial</td><td>{{ .AgentData.Serial }}</td>
-</tr>
-<tr>
-    {{ with $hardware := index .SystemData.SPHardwareDataType 0 }}
-    <td>Manufacturer</td><td>Apple</td>
-</tr>
-<tr>
-    <td>Model</td><td>{{$hardware.MachineName}}</td>
-</tr>
-<tr>
-    <td>CPU Type</td><td>{{$hardware.ChipType}}</td>
-</tr>
-<tr>
-    <td>Memory</td><td>{{$hardware.PhysicalMemory}} RAM</td>
-</tr>
-<tr>
-    <td>Model Number</td><td>{{$hardware.ModelNumber}}</td>
-    {{ end }}
-</tr>
-</table>
+{{$agentData := .AgentData}}
+<div class="row">
+    <div class="col">
+        <table class="table">
+        <tr>
+            <th>Field</th>
+            <th>Value</th>
+        </tr>
+        <tr>
+            <td>Hostname</td><td>{{ .AgentData.Name }}</td>
+        </tr>
+        <tr>
+            <td>Serial</td><td>{{ .AgentData.Serial }}</td>
+        </tr>
+        <tr>
+            {{ with $hardware := index .SystemData.SPHardwareDataType 0 }}
+            <td>Manufacturer</td><td>Apple</td>
+        </tr>
+        <tr>
+            <td>Model</td><td>{{$hardware.MachineName}}</td>
+        </tr>
+        <tr>
+            <td>CPU Type</td><td>{{$hardware.ChipType}}</td>
+        </tr>
+        <tr>
+            <td>Cores (Performance / Efficiency)</td><td>{{$agentData.CPUCountPerformance}} / {{$agentData.CPUCountEfficiency}}</td>
+        </tr>
+        <tr>
+            <td>Memory</td><td>{{$hardware.PhysicalMemory}} RAM</td>
+        </tr>
+        <tr>
+            <td>Model Number</td><td>{{$hardware.ModelNumber}}</td>
+            {{ end }}
+        </tr>
+        </table>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col">
+        <!-- commands window -->
+        <div id="commands_window" class="row" style="height: 100%;" hx-trigger="every 3s" hx-get="/api/v1/parts/commands/{{$agentData.ID}}">
+            <div class="card">
+                <div class="card-body">
+                {{ range .Commands }}
+                <div class="command">
+                    <span class="prompt">root@{{ $agentData.Name }}&gt;</span> <span class="cmd_input">{{ .Input }}</span>
+                    <div class="cmd_output">{{if eq .Output ""}}{{ "not_delivered or no_output" }}{{else}}{{ .Output }}{{end}}</div>
+                </div>
+                {{ end }}
+
+                </div>
+            </div>
+        </div>
+            <div class="command_input input-group">
+                <span class="input-group-text">root@{{$agentData.Name}}&gt;</span>
+                <input type="text" class="form-control" id="command_input" name="input" hx-trigger="keyup[keyCode==13]" hx-post="/api/v1/sendCommand/{{$agentData.ID}}" />
+                <button class="btn btn-outline-secondary" type="submit" hx-trigger="click" hx-post="/api/v1/sendCommand/{{$agentData.ID}}" >Send</button>
+            </div>
+        <hr/>
+        <div class="script_input input-group">
+            <span class="input-group-text">Script</span>
+            <select class="form-control" id="script_select">
+            {{ range .Scripts }}
+            <option value="{{.ID}}">{{ .Name }}</option>
+            {{ end }}
+            </select>
+        </div>
+        <div class="parameters_input card">
+            <div class="card-body">
+                <h4>Some Script Name</h4>
+                <div class="script_input input-group">
+                    <span class="input-group-text">$parameter_name</span>
+                    <input type="text" class="form-control" />
+                </div>
+            </div>
+        </div>
+        <div class="scheduler_input input-group">
+            <span class="input-group-text">Schedule</span>
+            <select class="form-control" id="schedule_select">
+            <option value="immediately">Immediately</option>
+            <option value="future">Future</option>
+            </select>
+        </div>
+        
+    </div>
+</div>
+{{ end }}
+
+
+{{ define "command_window" }}
+{{ $agentData := .AgentData}}
+        <div id="commands_window" class="row" style="height: 100%;" hx-trigger="every 3s" hx-get="/api/v1/parts/commands/{{$agentData.ID}}">
+            <div class="card">
+                <div class="card-body">
+                {{ range .Commands }}
+                <div class="command">
+                    <span class="prompt">root@{{ $agentData.Name }}&gt;</span> <span class="cmd_input">{{ .Input }}</span>
+                    <div class="cmd_output">{{if eq .Output ""}}{{ "not_delivered or no_output" }}{{else}}{{ .Output }}{{end}}</div>
+                </div>
+                {{ end }}
+
+                </div>
+            </div>
+        </div>
 {{ end }}

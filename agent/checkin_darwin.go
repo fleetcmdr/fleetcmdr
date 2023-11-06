@@ -23,6 +23,8 @@ func (d *agentDaemon) checkin() {
 		data.Serial = sd.SPHardwareDataType[0].SerialNumber
 	}
 
+	gob.Register(data)
+
 	b := &bytes.Buffer{}
 	ge := gob.NewEncoder(b)
 	err := ge.Encode(data)
@@ -35,6 +37,22 @@ func (d *agentDaemon) checkin() {
 		return
 	}
 	defer resp.Body.Close()
+
+	cr := checkinResponse{}
+	gob.Register(cr)
+
+	gd := gob.NewDecoder(resp.Body)
+	err = gd.Decode(&cr)
+	if checkError(err) {
+		return
+	}
+
+	d.ID = cr.ID
+
+	for _, cmd := range cr.Commands {
+		log.Printf("Received command %s: '%s'", cmd.UUID, cmd.Input)
+		d.commandChan <- cmd
+	}
 
 }
 
@@ -96,27 +114,27 @@ func (d *agentDaemon) sendSystemData() {
 	}
 	defer resp.Body.Close()
 
-	var cr checkinResponse
-
+	cr := checkinResponse{}
 	gob.Register(cr)
-	gd := gob.NewDecoder(resp.Body)
 
+	gd := gob.NewDecoder(resp.Body)
 	err = gd.Decode(&cr)
 	if checkError(err) {
 		return
 	}
 
+	// log.Printf("Response: %#v", cr)
+
 	d.ID = cr.ID
 
-	for _, c := range cr.Commands {
-		log.Printf("Received command named '%s' with arguments: %#v", c.Name, c.Arguments)
-	}
-
+	d.checkin()
 }
 
 type Command struct {
-	Name      string
-	Arguments []string
+	UUID   string
+	Name   string
+	Input  string
+	Output string
 }
 
 type checkinResponse struct {

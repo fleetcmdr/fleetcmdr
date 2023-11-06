@@ -45,6 +45,8 @@ func (d *serverDaemon) checkinHandler(w http.ResponseWriter, r *http.Request, pa
 	}
 	defer r.Body.Close()
 
+	gob.Register(cd)
+
 	b := bytes.NewReader(bodyBytes)
 	gd := gob.NewDecoder(b)
 
@@ -57,6 +59,43 @@ func (d *serverDaemon) checkinHandler(w http.ResponseWriter, r *http.Request, pa
 
 	q := `INSERT INTO checkins (agent_id, v_major, v_minor, v_patch) VALUES ($1,$2,$3,$4)`
 	_, err = d.db.ExecContext(context.Background(), q, cd.ID, cd.Version.Major, cd.Version.Minor, cd.Version.Patch)
+	if checkError(err) {
+		return
+	}
+
+	if cd.ID == 0 {
+		log.Printf("Agent with serial '%s' checked in with invalid id 0", cd.Serial)
+	}
+
+	// log.Printf("SELECT input, c_uuid FROM commands WHERE agent_id = %d AND delivered_ts IS NULL AND scheduled_ts < NOW() ORDER BY scheduled_ts ASC", cd.ID)
+
+	q = "SELECT input, c_uuid FROM commands WHERE agent_id = $1 AND delivered_ts IS NULL AND executed_ts IS NULL AND scheduled_ts < NOW() ORDER BY scheduled_ts ASC"
+	rows, err := d.db.QueryContext(context.Background(), q, cd.ID)
+	if checkError(err) {
+		return
+	}
+
+	var cmds []Command
+	for rows.Next() {
+		c := Command{}
+		err = rows.Scan(&c.Input, &c.UUID)
+		if checkError(err) {
+			return
+		}
+
+		cmds = append(cmds, c)
+	}
+
+	log.Printf("Found %d commands to run", len(cmds))
+
+	var cr checkinResponse
+	cr.ID = cd.ID
+	cr.Commands = cmds
+
+	gob.Register(cr)
+
+	ge := gob.NewEncoder(w)
+	err = ge.Encode(cr)
 	if checkError(err) {
 		return
 	}
@@ -120,20 +159,55 @@ func (d *serverDaemon) systemDataHandler(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	var cr checkinResponse
-	cr.ID = int(assignedID)
+	log.Printf("Corrected agent ID from %d to %d", cd.ID, assignedID)
+
+	cr := checkinResponse{}
+	cr.ID = assignedID
 
 	gob.Register(cr)
 
+	w.Header().Set("Content-Type", "application/octet-stream")
+
 	ge := gob.NewEncoder(w)
-	ge.Encode(cr)
+	err = ge.Encode(cr)
+	if checkError(err) {
+		return
+	}
 
 }
 
-type Command struct {
-	UUID      string // unique to each command issued, so we can provide results to the server
-	Name      string // "friendly" name, if/when it matters
-	Arguments []string
+func (d *serverDaemon) commandResultHandler(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
+
+	cmdResult := Command{}
+
+	gob.Register(cmdResult)
+
+	b := &bytes.Buffer{}
+
+	bodyBytes, err := io.ReadAll(req.Body)
+	if checkError(err) {
+		return
+	}
+
+	_, err = b.Write(bodyBytes)
+	if checkError(err) {
+		return
+	}
+
+	gd := gob.NewDecoder(b)
+	err = gd.Decode(&cmdResult)
+	if checkError(err) {
+		return
+	}
+
+	log.Printf("Updating command %s with output: '%s'", cmdResult.UUID, cmdResult.Output)
+
+	q := "UPDATE commands SET output = $1, executed_ts = NOW() WHERE c_uuid = $2"
+	_, err = d.db.ExecContext(context.Background(), q, cmdResult.Output, cmdResult.UUID)
+	if checkError(err) {
+		return
+	}
+
 }
 
 type checkinResponse struct {

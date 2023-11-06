@@ -33,6 +33,7 @@ type agentDaemon struct {
 	cmdHost               string
 	lastSystemDataCheckin time.Time
 	systemData            any
+	commandChan           chan Command
 }
 
 func main() {
@@ -44,6 +45,9 @@ func main() {
 	d := newDaemon()
 	d.daemonCfg = getPlatformAgentConfig()
 	d.cmdHost = fmt.Sprintf("http://%s:2213", cmdHost)
+	d.commandChan = make(chan Command, 50)
+
+	go d.commandProcessor()
 
 	if service.Interactive() {
 		d.debug = true

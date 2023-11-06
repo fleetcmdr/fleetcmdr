@@ -18,9 +18,13 @@ func (d *serverDaemon) bindRoutes() {
 
 	d.router.GET("/api/v1/parts/leftNav", d.leftNavHandler)
 	d.router.GET("/api/v1/parts/agent/:id", d.viewAgentHandler)
+	d.router.GET("/api/v1/parts/commands/:id", d.commandHistoryForAgentHandler)
 
+	d.router.POST("/api/v1/sendCommand/:id", d.sendCommandHandler)
 	d.router.POST("/api/v1/checkin", d.checkinHandler)
 	d.router.POST("/api/v1/sendSystemData", d.systemDataHandler)
+
+	d.router.POST("/api/v1/sendCommandResult", d.commandResultHandler)
 
 }
 

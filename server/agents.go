@@ -1,22 +1,29 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
+	"strconv"
 	"time"
+
+	"github.com/julienschmidt/httprouter"
 )
 
 type agent struct {
-	ID         int
-	ClientID   int
-	Name       string
-	Serial     string
-	Deleted    time.Time
-	OS         string
-	SystemData string
+	ID                  int
+	ClientID            int
+	Name                string
+	Serial              string
+	Deleted             time.Time
+	OS                  string
+	SystemData          string
+	CPUCountPerformance int
+	CPUCountEfficiency  int
 }
 
 func (d *serverDaemon) getAgents(limit, skip int) []*agent {
@@ -54,4 +61,39 @@ func (d *serverDaemon) getAgentByID(id int) (*agent, error) {
 	}
 
 	return a, nil
+}
+
+func (d *serverDaemon) commandHistoryForAgentHandler(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
+
+	id, err := strconv.Atoi(params.ByName("id"))
+	if checkError(err) {
+		return
+	}
+
+	a, err := d.getAgentByID(id)
+	if checkError(err) {
+		return
+	}
+
+	sData := darwinSystemData{}
+	sData.AgentData = a
+
+	cs, err := d.getAgentCommands(id)
+	if checkError(err) {
+		return
+	}
+
+	sData.Commands = cs
+
+	b := bytes.NewBuffer(nil)
+	err = d.templates.ExecuteTemplate(b, "command_window", sData)
+	if checkError(err) {
+		return
+	}
+
+	responseBytes := b.Bytes()
+
+	w.Header().Set("Content-Type", "text/html")
+	w.Header().Set("Content-Length", strconv.Itoa(len(responseBytes)))
+	w.Write(responseBytes)
 }

@@ -20,7 +20,7 @@
 # Go workspace file
 go.work
 
-fc_agent
+server/**/fc_agent
 fc_updater
 *.sh
 *.xml
