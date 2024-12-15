@@ -1,0 +1,11 @@
+#commands_window {height: 500px; overflow: auto;}
+#leftNav {
+    position:-webkit-sticky;
+    position:sticky;
+    top:5rem;
+    display:block !important;
+    height:calc(100vh - 6rem);
+    padding-left:.25rem;
+    margin-left:-.25rem;
+    overflow-y:auto
+}

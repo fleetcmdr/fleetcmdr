@@ -65,7 +65,7 @@ func (d *serverDaemon) getAgentByID(id int) (*agent, error) {
 
 func (d *serverDaemon) commandHistoryForAgentHandler(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
 
-	id, err := strconv.Atoi(params.ByName("id"))
+	id, err := strconv.Atoi(params.ByName("agentID"))
 	if checkError(err) {
 		return
 	}

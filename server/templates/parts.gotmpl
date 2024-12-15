@@ -1,4 +1,7 @@
 {{ define "leftNav" }}
+        <div class="row">
+            <div class="col"><h2>FleetCmdr</h2></div>
+        </div>
         <h3>Agents</h3>
         <hr/>
         <ul>
@@ -12,13 +15,11 @@
 {{$agentData := .AgentData}}
 <div class="row">
     <div class="col">
+        <h3>{{ .AgentData.Name }}</h3>
         <table class="table">
         <tr>
-            <th>Field</th>
-            <th>Value</th>
-        </tr>
-        <tr>
-            <td>Hostname</td><td>{{ .AgentData.Name }}</td>
+            <th><h4>Field</h4></th>
+            <th><h4>Value</h4></th>
         </tr>
         <tr>
             <td>Serial</td><td>{{ .AgentData.Serial }}</td>
@@ -50,24 +51,29 @@
 <div class="row">
     <div class="col">
         <!-- commands window -->
-        <div id="commands_window" class="row" style="height: 100%;" hx-trigger="every 3s" hx-get="/api/v1/parts/commands/{{$agentData.ID}}">
+        <div id="commands_window" class="row" _="on load set my.scrollTop to my.scrollHeight">
             <div class="card">
-                <div class="card-body">
+                <div class="card-body" >
                 {{ range .Commands }}
                 <div class="command">
                     <span class="prompt">root@{{ $agentData.Name }}&gt;</span> <span class="cmd_input">{{ .Input }}</span>
-                    <div class="cmd_output">{{if eq .Output ""}}{{ "not_delivered or no_output" }}{{else}}{{ .Output }}{{end}}</div>
+                    {{ template "command-output" .}}
                 </div>
                 {{ end }}
 
                 </div>
             </div>
         </div>
-            <div class="command_input input-group">
-                <span class="input-group-text">root@{{$agentData.Name}}&gt;</span>
-                <input type="text" class="form-control" id="command_input" name="input" hx-trigger="keyup[keyCode==13]" hx-post="/api/v1/sendCommand/{{$agentData.ID}}" />
-                <button class="btn btn-outline-secondary" type="submit" hx-trigger="click" hx-post="/api/v1/sendCommand/{{$agentData.ID}}" >Send</button>
-            </div>
+    </div>
+</div>
+<div class="row">
+    <div class="col">
+        <div class="command_input input-group">
+            <span class="input-group-text">root@{{$agentData.Name}}&gt;</span>
+            <input type="text" class="form-control" id="command_input" name="input" hx-trigger="keyup[keyCode==13]" hx-swap="outerHTML"
+            hx-target="#commands_window" hx-post="/api/v1/sendCommand/{{$agentData.ID}}" _="on keyup if the event's key is 'Enter' then set my value to ''"  />
+
+        </div>
         <hr/>
         <div class="script_input input-group">
             <span class="input-group-text">Script</span>
@@ -89,8 +95,8 @@
         <div class="scheduler_input input-group">
             <span class="input-group-text">Schedule</span>
             <select class="form-control" id="schedule_select">
-            <option value="immediately">Immediately</option>
-            <option value="future">Future</option>
+                <option value="immediately">Immediately</option>
+                <option value="future">Future</option>
             </select>
         </div>
         
@@ -99,15 +105,20 @@
 {{ end }}
 
 
+{{ define "command-output"}}
+    <textarea class="cmd_output form-control" disabled readonly {{if not .Executed}}hx-get="/api/v1/parts/command/output/{{.ID}}" hx-swap="outerHTML" hx-trigger="every 5s"{{end}}>{{if eq .Output ""}}{{ "not_delivered or no_output" }}{{else}}{{ .Output }}{{end}}</textarea>
+{{ end }}
+
+
 {{ define "command_window" }}
 {{ $agentData := .AgentData}}
-        <div id="commands_window" class="row" style="height: 100%;" hx-trigger="every 3s" hx-get="/api/v1/parts/commands/{{$agentData.ID}}">
+        <div id="commands_window" class="row" hx-trigger="every 60s" hx-get="/api/v1/parts/commands/history/{{$agentData.ID}}" hx-swap="outerHTML" _="on load set my.scrollTop to my.scrollHeight">
             <div class="card">
                 <div class="card-body">
                 {{ range .Commands }}
                 <div class="command">
                     <span class="prompt">root@{{ $agentData.Name }}&gt;</span> <span class="cmd_input">{{ .Input }}</span>
-                    <div class="cmd_output">{{if eq .Output ""}}{{ "not_delivered or no_output" }}{{else}}{{ .Output }}{{end}}</div>
+                    {{ template "command-output" .}}
                 </div>
                 {{ end }}
 

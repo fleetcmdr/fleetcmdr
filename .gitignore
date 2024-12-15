@@ -20,11 +20,16 @@
 # Go workspace file
 go.work
 
-server/**/fc_agent
+fc_server
+fc_agent
 fc_updater
+updater/fc_updater
 *.sh
 *.xml
 *.json
 .ds_store
 .idea
 fc_*
+
+logs
+output.log

@@ -49,6 +49,8 @@ func (d *agentDaemon) checkin() {
 
 	d.ID = cr.ID
 
+	log.Printf("Received from server: %#v", cr)
+
 	for _, cmd := range cr.Commands {
 		log.Printf("Received command %s: '%s'", cmd.UUID, cmd.Input)
 		d.commandChan <- cmd
@@ -123,7 +125,7 @@ func (d *agentDaemon) sendSystemData() {
 		return
 	}
 
-	// log.Printf("Response: %#v", cr)
+	log.Printf("Response: %#v", cr)
 
 	d.ID = cr.ID
 

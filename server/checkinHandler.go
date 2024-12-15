@@ -65,6 +65,12 @@ func (d *serverDaemon) checkinHandler(w http.ResponseWriter, r *http.Request, pa
 
 	if cd.ID == 0 {
 		log.Printf("Agent with serial '%s' checked in with invalid id 0", cd.Serial)
+
+		q = "INSERT INTO agents (serial, os) VALUES ($1,$2) RETURNING id"
+		err = d.db.QueryRowContext(context.Background(), q, cd.Serial, cd.OS).Scan(&cd.ID)
+		if checkError(err) {
+			return
+		}
 	}
 
 	// log.Printf("SELECT input, c_uuid FROM commands WHERE agent_id = %d AND delivered_ts IS NULL AND scheduled_ts < NOW() ORDER BY scheduled_ts ASC", cd.ID)
@@ -83,6 +89,12 @@ func (d *serverDaemon) checkinHandler(w http.ResponseWriter, r *http.Request, pa
 			return
 		}
 
+		q = "UPDATE commands SET delivered_ts = NOW() WHERE c_uuid = $1"
+		_, err = d.db.ExecContext(context.Background(), q, c.UUID)
+		if checkError(err) {
+			return
+		}
+
 		cmds = append(cmds, c)
 	}
 
@@ -90,7 +102,7 @@ func (d *serverDaemon) checkinHandler(w http.ResponseWriter, r *http.Request, pa
 
 	var cr checkinResponse
 	cr.ID = cd.ID
-	cr.Commands = cmds
+	cr.Commands = append(cr.Commands, cmds...)
 
 	gob.Register(cr)
 

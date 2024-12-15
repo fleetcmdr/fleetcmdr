@@ -133,11 +133,50 @@ func (d *serverDaemon) sendCommandHandler(w http.ResponseWriter, req *http.Reque
 
 	log.Printf("Recieved command '%s' from agent %d", input, id)
 
-	q := "INSERT INTO commands (agent_id, input, c_uuid) VALUES ($1, $2, $3)"
-	_, err = d.db.ExecContext(context.Background(), q, id, input, cUUID.String())
+	var agentID int
+
+	q := "INSERT INTO commands (agent_id, input, c_uuid, scheduled_ts) VALUES ($1, $2, $3, NOW()) RETURNING id"
+	err = d.db.QueryRowContext(context.Background(), q, id, input, cUUID.String()).Scan(&agentID)
 	if checkError(err) {
 		return
 	}
+
+	time.Sleep(time.Millisecond * 200)
+
+	params = append(params, httprouter.Param{Key: "agentID", Value: strconv.Itoa(id)})
+
+	d.commandHistoryForAgentHandler(w, req, params)
+}
+
+func (d *serverDaemon) commandOutputRefreshHandler(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
+
+	id, err := strconv.Atoi(params.ByName("commandID"))
+	if checkError(err) {
+		return
+	}
+
+	var co Command
+	q := "SELECT id, COALESCE(output,''), executed_ts FROM commands WHERE id = $1"
+	err = d.db.QueryRowContext(context.Background(), q, id).Scan(&co.ID, &co.Output, &co.ExecutedTS)
+	if checkError(err) {
+		return
+	}
+
+	if co.ExecutedTS.Valid {
+		co.Executed = true
+	}
+
+	b := bytes.NewBuffer(nil)
+	err = d.templates.ExecuteTemplate(b, "command-output", co)
+	if checkError(err) {
+		return
+	}
+
+	responseBytes := b.Bytes()
+
+	w.Header().Set("Content-Type", "text/html")
+	w.Header().Set("Content-Length", strconv.Itoa(len(responseBytes)))
+	w.Write(responseBytes)
 
 }
 
@@ -178,7 +217,7 @@ func (d *serverDaemon) getScriptsForAgent(id int) ([]Script, error) {
 }
 
 func (d *serverDaemon) getAgentCommands(id int) (commands []Command, err error) {
-	q := "SELECT ts, input, output, scheduled_ts, delivered_ts, executed_ts FROM commands WHERE agent_id = $1 LIMIT 20"
+	q := "SELECT id, ts, input, COALESCE(output,''), scheduled_ts, delivered_ts, executed_ts FROM commands WHERE agent_id = $1 ORDER BY scheduled_ts DESC LIMIT 20"
 	rows, err := d.db.QueryContext(context.Background(), q, id)
 	if checkError(err) {
 		return
@@ -188,18 +227,23 @@ func (d *serverDaemon) getAgentCommands(id int) (commands []Command, err error) 
 
 	for rows.Next() {
 		c := Command{}
-		err = rows.Scan(&c.TS, &c.Input, &c.Output, &c.ScheduledTS, &c.DeliveredTS, &c.ExecutedTS)
+		err = rows.Scan(&c.ID, &c.TS, &c.Input, &c.Output, &c.ScheduledTS, &c.DeliveredTS, &c.ExecutedTS)
 		if checkError(err) {
 			return
 		}
 
-		cmds = append(cmds, c)
+		if c.ExecutedTS.Valid {
+			c.Executed = true
+		}
+
+		cmds = append([]Command{c}, cmds...)
 	}
 
 	return cmds, nil
 }
 
 type Command struct {
+	ID          int
 	UUID        string
 	TS          time.Time
 	Input       string
@@ -207,6 +251,7 @@ type Command struct {
 	ScheduledTS sql.NullTime
 	DeliveredTS sql.NullTime
 	ExecutedTS  sql.NullTime
+	Executed    bool
 }
 
 type darwinSystemData struct {
