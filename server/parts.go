@@ -124,6 +124,7 @@ func (d *serverDaemon) viewAgentHandler(w http.ResponseWriter, r *http.Request, 
 			Y int64 `json:"y"`
 		}
 
+		var randomizeSparkline bool
 		var points []HCPoint
 		for i := 6 * 24; i >= 0; i-- {
 			// for each day we do not have a timestamp, it should indicate missing hour of checkins
@@ -132,8 +133,10 @@ func (d *serverDaemon) viewAgentHandler(w http.ResponseWriter, r *http.Request, 
 				v = 1
 			}
 
-			if rand.Float32() > .7 {
-				v = 0
+			if randomizeSparkline {
+				if rand.Float32() > .7 {
+					v = 0
+				}
 			}
 			// if i > 3*24 {
 			// v = 0

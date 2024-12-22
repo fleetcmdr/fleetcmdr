@@ -29,10 +29,6 @@
         <div class="col">
         <table class="table">
         <tr>
-            <th><h4>Field</h4></th>
-            <th><h4>Value</h4></th>
-        </tr>
-        <tr>
             <td>Serial</td><td>{{ .AgentData.Serial }}</td>
         </tr>
         <tr>
@@ -46,7 +42,7 @@
             <td>CPU Type</td><td>{{$hardware.ChipType}}</td>
         </tr>
         <tr>
-            <td>Cores (Performance / Efficiency)</td><td>{{$agentData.CPUCountPerformance}} / {{$agentData.CPUCountEfficiency}}</td>
+            <td>Cores (P/E)</td><td>{{$agentData.CPUCountPerformance}} / {{$agentData.CPUCountEfficiency}}</td>
         </tr>
         <tr>
             <td>Memory</td><td>{{$hardware.PhysicalMemory}} RAM</td>
