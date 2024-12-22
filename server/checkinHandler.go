@@ -223,8 +223,9 @@ func (d *serverDaemon) commandResultHandler(w http.ResponseWriter, req *http.Req
 }
 
 type checkinResponse struct {
-	ID       int
-	Commands []Command
+	ID             int
+	Commands       []Command
+	StreamActivity bool
 }
 
 type AppleSystemProfilerOutput struct {

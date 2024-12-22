@@ -2,10 +2,21 @@
 #leftNav {
     position:-webkit-sticky;
     position:sticky;
-    top:5rem;
+    /* top:5rem; */
     display:block !important;
     height:calc(100vh - 6rem);
     padding-left:.25rem;
     margin-left:-.25rem;
     overflow-y:auto
+}
+
+.logo_small {height: 24px;}
+
+#activityInstantaneousChart {
+    max-width: 300px;
+    margin: 0 auto;
+}
+
+#checkin_history_sparkline {
+    height: 40px;
 }

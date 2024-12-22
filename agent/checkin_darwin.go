@@ -11,6 +11,50 @@ import (
 	"time"
 )
 
+type Activity struct {
+	CPUConsumedPercent           float64
+	MemoryConsumedBytes          int
+	DiskIOOperationsPerSecond    int     // unknown
+	DiskLatencyMilliseconds      float64 // < 1 is good?
+	NetworkUploadBytesPerSecond  int
+	NetworkDownloadBytesPerSeond int
+}
+
+func monitorActivity(activityChan chan Activity) {
+	// collect and send metrics to channel
+}
+
+func sendActivityMoment(activityChan chan Activity) {
+	// retrieve activity, send to server
+}
+
+func (d *agentDaemon) streamActivity() {
+
+	ticker := time.NewTicker(time.Second)
+
+	// begin collecting metrics asynchronously
+	// we will then send the latest set of data every second
+
+	var activityChan chan Activity
+
+	go monitorActivity(activityChan)
+
+	for {
+
+		select {
+		case <-ticker.C:
+			// collect metrics
+
+			// send metrics to server
+			go sendActivityMoment(activityChan)
+		case <-d.doneStreamingChan:
+			return
+		}
+
+	}
+
+}
+
 func (d *agentDaemon) checkin() {
 
 	var data checkinData
@@ -50,6 +94,14 @@ func (d *agentDaemon) checkin() {
 	d.ID = cr.ID
 
 	log.Printf("Received from server: %#v", cr)
+
+	if cr.StreamActivity {
+		if !d.streamingActivity {
+			d.streamingActivity = true
+			log.Printf("Starting stream of activity data")
+			go d.streamActivity()
+		}
+	}
 
 	for _, cmd := range cr.Commands {
 		log.Printf("Received command %s: '%s'", cmd.UUID, cmd.Input)
@@ -140,8 +192,9 @@ type Command struct {
 }
 
 type checkinResponse struct {
-	ID       int
-	Commands []Command
+	ID             int
+	Commands       []Command
+	StreamActivity bool
 }
 
 type AppleSystemProfilerOutput struct {

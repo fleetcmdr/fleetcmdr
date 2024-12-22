@@ -34,6 +34,9 @@ type agentDaemon struct {
 	lastSystemDataCheckin time.Time
 	systemData            any
 	commandChan           chan Command
+
+	streamingActivity bool
+	doneStreamingChan chan int
 }
 
 func main() {
@@ -46,6 +49,7 @@ func main() {
 	d.daemonCfg = getPlatformAgentConfig()
 	d.cmdHost = fmt.Sprintf("http://%s:2213", cmdHost)
 	d.commandChan = make(chan Command, 50)
+	d.doneStreamingChan = make(chan int, 1)
 
 	go d.commandProcessor()
 

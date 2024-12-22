@@ -5,7 +5,10 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
+	"html/template"
 	"log"
+	"math/rand"
 	"net/http"
 	"strconv"
 	"strings"
@@ -18,6 +21,7 @@ import (
 type navItem struct {
 	Name string
 	ID   int
+	OS   string
 }
 
 func (d *serverDaemon) leftNavHandler(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
@@ -32,6 +36,7 @@ func (d *serverDaemon) leftNavHandler(w http.ResponseWriter, r *http.Request, pa
 		var ni navItem
 		ni.ID = a.ID
 		ni.Name = a.Name
+		ni.OS = a.OS
 		navItems = append(navItems, ni)
 	}
 
@@ -96,6 +101,95 @@ func (d *serverDaemon) viewAgentHandler(w http.ResponseWriter, r *http.Request, 
 		sData.Scripts = scripts
 
 		log.Printf(sData.SystemData.SPHardwareDataType[0].SerialNumber)
+
+		q := "SELECT date_trunc('hour', ts) FROM checkins WHERE agent_id = $1 AND ts > NOW() - interval '7 days' GROUP BY date_trunc('hour', ts) ORDER BY date_trunc('hour', ts)"
+		rows, err := d.db.QueryContext(context.Background(), q, id)
+		if checkError(err) {
+			return
+		}
+
+		timestamps := make(map[int64]bool)
+		for rows.Next() {
+			var ts time.Time
+			err = rows.Scan(&ts)
+			if checkError(err) {
+				return
+			}
+
+			timestamps[ts.UnixMilli()] = true
+		}
+
+		type HCPoint struct {
+			X int64 `json:"x"`
+			Y int64 `json:"y"`
+		}
+
+		var points []HCPoint
+		for i := 6 * 24; i >= 0; i-- {
+			// for each day we do not have a timestamp, it should indicate missing hour of checkins
+			v := 0
+			if _, ok := timestamps[time.Now().Truncate(time.Hour).Unix()]; !ok {
+				v = 1
+			}
+
+			if rand.Float32() > .7 {
+				v = 0
+			}
+			// if i > 3*24 {
+			// v = 0
+			// }
+
+			points = append(points, HCPoint{X: time.Now().Truncate(time.Hour).Add(time.Duration(-i) * time.Hour).UnixMilli(), Y: int64(v)})
+		}
+
+		jsonBytes, err := json.Marshal(points)
+		if checkError(err) {
+			return
+		}
+
+		// jsonBytes = bytes.ReplaceAll(jsonBytes, []byte(`"x"`), []byte("x"))
+		// jsonBytes = bytes.ReplaceAll(jsonBytes, []byte(`"y"`), []byte("y"))
+
+		// log.Printf("points: '%s'", string(jsonBytes))
+
+		highchart := fmt.Sprintf(`<script>Highcharts.chart('checkin_history_sparkline', {
+            chart: {
+                type: 'area',
+                margin: [0,0,0,0],
+                backgroundColor: '#FF0000',
+            },
+            legend: {
+                enabled: false,
+            },
+            credits: {
+                enabled: false,
+            },
+            accessibility: {
+                enabled: false,
+            },
+            title: {
+                text: null
+            },
+            yAxis: {
+                title: {
+                    text: null,
+                },
+                labels: {
+                    enabled: false
+                },
+                tickPositions: [0],
+            },
+            xAxis: {
+                type: 'datetime',
+                labels: {
+                    enabled: false
+                },
+                tickPositions: [],
+            },
+            series: [{color: '#00FF00', data: %s}],
+        })</script>`, string(jsonBytes))
+
+		sData.CheckinHistorySparkline = template.HTML(highchart)
 
 		// sData.systemData = a.SystemData.(AppleSystemProfilerOutput)
 		b := bytes.NewBuffer(nil)
@@ -255,8 +349,9 @@ type Command struct {
 }
 
 type darwinSystemData struct {
-	AgentData  *agent
-	SystemData AppleSystemProfilerOutput
-	Commands   []Command
-	Scripts    []Script
+	AgentData               *agent
+	SystemData              AppleSystemProfilerOutput
+	Commands                []Command
+	Scripts                 []Script
+	CheckinHistorySparkline template.HTML
 }
