@@ -106,7 +106,6 @@ func (d *agentDaemon) checkin() {
 	}
 
 	for _, cmd := range cr.Commands {
-		log.Printf("Received command %s: '%s'", cmd.UUID, cmd.Input)
 		d.commandChan <- cmd
 	}
 
@@ -164,7 +163,7 @@ func (d *agentDaemon) sendSystemData() {
 		return
 	}
 
-	resp, err := d.hc.Post(fmt.Sprintf("%s/%s", d.controlServer, systemDataPath), "application/octet-stream", b)
+	resp, err := d.hc.Post(fmt.Sprintf("%s://%s/%s", d.programUrl.Scheme, d.controlServer, systemDataPath), "application/octet-stream", b)
 	if checkError(err) {
 		return
 	}

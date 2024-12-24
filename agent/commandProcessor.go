@@ -7,6 +7,8 @@ import (
 	"io"
 	"log"
 	"os"
+
+	"github.com/kardianos/service"
 )
 
 func (d *agentDaemon) commandProcessor() {
@@ -18,13 +20,15 @@ func (d *agentDaemon) commandProcessor() {
 
 			if c.Special > 0 {
 				d.executeSpecial(c.Special)
-			}
-			c.Output, err = run(c.Input)
-			if checkError(err) {
-				// Do something smart?
+			} else {
+				log.Printf("Received command %s: '%s'", c.UUID, c.Input)
+				c.Output, err = run(c.Input)
+				if checkError(err) {
+					// Do something smart?
+				}
+				d.returnCommandResult(c)
 			}
 
-			d.returnCommandResult(c)
 		}
 	}
 }
@@ -32,6 +36,7 @@ func (d *agentDaemon) commandProcessor() {
 func (d *agentDaemon) executeSpecial(sc specialCommand) error {
 	switch sc {
 	case specialUpgrade:
+		log.Printf("Executing agent upgrade")
 		err := d.upgradeAgent()
 		if err != nil {
 			return err
@@ -57,7 +62,10 @@ func (d *agentDaemon) upgradeAgent() (err error) {
 
 	log.Printf("Received %s file", BytesToHuman(int64(len(bodyBytes))))
 
-	f, err := os.Create(d.installPath)
+	ud := newDaemon()
+	ud.daemonCfg = getPlatformUpdaterConfig()
+
+	f, err := os.Create(ud.daemonCfg.Executable)
 	if checkError(err) {
 		return
 	}
@@ -67,7 +75,7 @@ func (d *agentDaemon) upgradeAgent() (err error) {
 		return
 	}
 
-	log.Printf("Wrote %s to file at '%s'", BytesToHuman(int64(n)), d.installPath)
+	log.Printf("Wrote %s to file at '%s'", BytesToHuman(int64(n)), ud.daemonCfg.Executable)
 
 	err = f.Sync()
 	if checkError(err) {
@@ -78,6 +86,41 @@ func (d *agentDaemon) upgradeAgent() (err error) {
 	if checkError(err) {
 		return
 	}
+
+	log.Printf("new daemon")
+
+	ud.daemon, err = service.New(ud, ud.daemonCfg)
+	if checkError(err) {
+		return
+	}
+
+	// log.Printf("daemon stop")
+
+	err = ud.daemon.Stop()
+	if checkError(err) {
+		return
+	}
+	// log.Printf("daemon uninstall")
+
+	err = ud.daemon.Uninstall()
+	if checkError(err) {
+		return
+	}
+	// log.Printf("daemon install")
+
+	err = ud.daemon.Install()
+	if checkError(err) {
+		return
+	}
+
+	// log.Printf("daemon start")
+
+	err = ud.daemon.Start()
+	if checkError(err) {
+		return
+	}
+
+	log.Printf("updater daemon started")
 
 	return nil
 }

@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 
 	"github.com/julienschmidt/httprouter"
@@ -72,15 +74,26 @@ func (d *serverDaemon) versionCheckHandler(w http.ResponseWriter, req *http.Requ
 func (d *serverDaemon) buildAppHandler(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
 	app := params.ByName("App")
 
-	var commandText string
+	var dir string
 	var cmd *exec.Cmd
 	switch app {
 	case "agent":
-		commandText = "../agent/build.sh"
+		dir = "../agent"
 	case "updater":
-		commandText = "../updater/build.sh"
+		dir = "../updater"
+	default:
+		log.Printf("unexpected app name '%s'", app)
+		return
 	}
-	cmd = exec.Command(commandText)
+	cmd = exec.Command("./build.sh")
+
+	wd, err := os.Getwd()
+	if checkError(err) {
+		return
+	}
+	cmd.Dir = filepath.Join(wd, dir)
+	log.Printf("Running command at '%s'", cmd.Dir)
+
 	out, err := cmd.CombinedOutput()
 	if checkError(err) {
 		return

@@ -96,7 +96,7 @@ func main() {
 
 	ad := &agentDaemon{}
 	ad.programUrl.Scheme = "http"
-	ad.programUrl.Host = ad.controlServer
+	ad.programUrl.Host = ud.controlServer
 	ad.programUrl.Path = fmt.Sprintf("/static/downloads/%s/%s/fc_agent", runtime.GOOS, runtime.GOARCH)
 	ad.daemonCfg = getPlatformAgentConfig()
 	ad.daemon, err = service.New(ad, ad.daemonCfg)
@@ -131,16 +131,29 @@ func main() {
 		}
 		log.Printf("Service started")
 		return
-	}
+	} else {
 
-	t := time.NewTicker(time.Hour * 25)
-	for {
-		select {
-		case <-t.C:
+		go func() {
+
 			err = ad.checkForUpdates()
 			if checkError(err) {
 				//return
 			}
+			t := time.NewTicker(time.Hour * 25)
+			for {
+				select {
+				case <-t.C:
+					err = ad.checkForUpdates()
+					if checkError(err) {
+						//return
+					}
+				}
+			}
+		}()
+
+		err = ud.daemon.Run()
+		if checkError(err) {
+			return
 		}
 	}
 
@@ -240,6 +253,8 @@ func (d *agentDaemon) checkForUpdates() (err error) {
 
 	var agentNotResponsive bool
 
+	log.Printf("Checking agent version")
+
 	resp, err := d.hc.Get("http://localhost:22130/api/v1/version")
 	if checkError(err) {
 		agentNotResponsive = true
@@ -259,10 +274,15 @@ func (d *agentDaemon) checkForUpdates() (err error) {
 			return err
 		}
 
-		resp, err = d.hc.Get(fmt.Sprintf("http://%s/api/v1/check/version/agent/%d/%d/%d", d.controlServer, sv.Major, sv.Minor, sv.Patch))
+		u := fmt.Sprintf("%s://%s/api/v1/check/version/agent/%d/%d/%d", d.programUrl.Scheme, d.programUrl.Host, sv.Major, sv.Minor, sv.Patch)
+		log.Printf("Checking if version is outdated with control server at '%s'", u)
+
+		resp, err = d.hc.Get(u)
 		if checkError(err) {
 			return err
 		}
+
+		log.Printf("Server responded with statuscode %d", resp.StatusCode)
 
 		if resp.StatusCode != http.StatusCreated {
 			return err
