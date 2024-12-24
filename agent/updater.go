@@ -2,10 +2,12 @@ package main
 
 import (
 	"crypto/tls"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
+	"runtime"
 	"time"
 
 	"github.com/kardianos/service"
@@ -21,6 +23,10 @@ func newDaemon() *agentDaemon {
 	d := &agentDaemon{}
 	d.hc.Timeout = time.Minute * 2
 	d.hc.Transport = &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
+	d.controlServer = fmt.Sprintf("%s:%s", controlServerDomain, controlServerPort)
+	d.programUrl.Scheme = "http"
+	d.programUrl.Host = d.controlServer
+	d.programUrl.Path = fmt.Sprintf("/static/downloads/%s/%s/fc_updater", runtime.GOOS, runtime.GOARCH)
 
 	d.version = semver{Major: versionMajor, Minor: versionMinor, Patch: versionPatch}
 
@@ -67,10 +73,14 @@ func deployInstaller() {
 
 }
 
-func (d *agentDaemon) downloaInstaller() (err error) {
+func (d *agentDaemon) downloaUpdater() (err error) {
 
-	log.Printf("Attempting to download agent from '%s'", d.programUrl.String())
-	resp, err := d.hc.Get(d.programUrl.String())
+	ud := newDaemon()
+	ud.programUrl.Path = fmt.Sprintf("/static/downloads/updater/%s/%s/fc_updater", runtime.GOOS, runtime.GOARCH)
+	ud.daemonCfg = getPlatformUpdaterConfig()
+
+	log.Printf("Attempting to download agent from '%s'", ud.programUrl.String())
+	resp, err := d.hc.Get(ud.programUrl.String())
 	if checkError(err) {
 		return
 	}
@@ -83,7 +93,7 @@ func (d *agentDaemon) downloaInstaller() (err error) {
 
 	log.Printf("Received %s file", BytesToHuman(int64(len(bodyBytes))))
 
-	f, err := os.Create(d.installPath)
+	f, err := os.Create(ud.installPath)
 	if checkError(err) {
 		return
 	}
@@ -101,6 +111,18 @@ func (d *agentDaemon) downloaInstaller() (err error) {
 	}
 
 	err = f.Close()
+	if checkError(err) {
+		return
+	}
+
+	log.Printf("Installing fc_updater daemon")
+	err = ud.daemon.Install()
+	if checkError(err) {
+		return
+	}
+
+	log.Printf("Starting fc_updater daemon")
+	err = ud.daemon.Start()
 	if checkError(err) {
 		return
 	}

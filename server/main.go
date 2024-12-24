@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 
 	// _ "github.com/go-sql-driver/mysql"
 	_ "github.com/jackc/pgx/v5"
@@ -14,11 +15,13 @@ import (
 )
 
 type serverDaemon struct {
-	hc        http.Client
-	hs        http.Server
-	router    *httprouter.Router
-	templates *template.Template
-	db        *sql.DB
+	hc                        http.Client
+	hs                        http.Server
+	router                    *httprouter.Router
+	templates                 *template.Template
+	db                        *sql.DB
+	currentAgentVersion       semver
+	currentAgentVersionLocker sync.RWMutex
 }
 
 func parseTemplates() *template.Template {
@@ -58,6 +61,7 @@ func main() {
 		Addr:    "localhost:2213",
 		Handler: d.router,
 	}
+	d.getLatestAgentVersion()
 
 	log.Printf("Binding routes...")
 

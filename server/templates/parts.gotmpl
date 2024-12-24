@@ -29,30 +29,31 @@
         <div class="col">
         <table class="table">
         <tr>
-            <td>Serial</td><td>{{ .AgentData.Serial }}</td>
+            <td class='agent_field_name'>Serial</td><td>{{ .AgentData.Serial }}</td>
         </tr>
         <tr>
             {{ with $hardware := index .SystemData.SPHardwareDataType 0 }}
-            <td>Manufacturer</td><td>Apple</td>
+            <td class='agent_field_name'>Manufacturer</td><td>Apple</td>
         </tr>
         <tr>
-            <td>Model</td><td>{{$hardware.MachineName}}</td>
+            <td class='agent_field_name'>Model</td><td>{{$hardware.MachineName}}</td>
         </tr>
         <tr>
-            <td>CPU Type</td><td>{{$hardware.ChipType}}</td>
+            <td class='agent_field_name'>CPU Type</td><td>{{$hardware.ChipType}}</td>
         </tr>
         <tr>
-            <td>Cores (P/E)</td><td>{{$agentData.CPUCountPerformance}} / {{$agentData.CPUCountEfficiency}}</td>
+            <td class='agent_field_name'>Cores (P/E)</td><td>{{$agentData.CPUCountPerformance}} / {{$agentData.CPUCountEfficiency}}</td>
         </tr>
         <tr>
-            <td>Memory</td><td>{{$hardware.PhysicalMemory}} RAM</td>
+            <td class='agent_field_name'>Memory</td><td>{{$hardware.PhysicalMemory}} RAM</td>
         </tr>
         <tr>
-            <td>Model Number</td><td>{{$hardware.ModelNumber}}</td>
+            <td class='agent_field_name'>Model Number</td><td>{{$hardware.ModelNumber}}</td>
             {{ end }}
         </tr>
         <tr>
-            <td colspan=2>
+            <td class='agent_field_name'>Checkins this week</td>
+            <td>
                 <div id='checkin_history_sparkline'></div>
                 {{ .CheckinHistorySparkline }}
             </td>
@@ -65,6 +66,8 @@
         <div class="col">
         <!--Add a set of rings? CPU/Mem/Disk for live activity, with a history sparkline of some kind below-->
         <div class="btn btn-primary" hx-trigger="click" hx-get="/api/v1/">Start Streaming</div>
+        <div class="btn btn-primary" hx-trigger="click" hx-get="/api/v1/build/agent" hx-swap="none">Rebuild Agent</div>
+        <div class="btn btn-primary" hx-trigger="click" hx-get="/api/v1/build/updater" hx-swap="none">Rebuild Updater</div>
         <div id='activityInstantaneousChart'></div>
         
         </div>

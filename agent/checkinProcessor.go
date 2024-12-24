@@ -6,9 +6,9 @@ import (
 )
 
 const (
-	checkinURL       string = "/api/v1/checkin"
-	systemDataURL           = "/api/v1/sendSystemData"
-	commandResultURL        = "/api/v1/sendCommandResult"
+	checkinPath       string = "/api/v1/checkin"
+	systemDataPath           = "/api/v1/sendSystemData"
+	commandResultPath        = "/api/v1/sendCommandResult"
 )
 
 func (d *agentDaemon) checkinProcessor() {

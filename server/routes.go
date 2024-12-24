@@ -24,6 +24,9 @@ func (d *serverDaemon) bindRoutes() {
 	d.router.POST("/api/v1/checkin", d.checkinHandler)
 	d.router.POST("/api/v1/sendSystemData", d.systemDataHandler)
 
+	d.router.GET("/api/v1/version/check/:App/:Major/:Minor/:Patch", d.versionCheckHandler)
+	d.router.GET("/api/v1/build/:App", d.buildAppHandler)
+
 	d.router.POST("/api/v1/sendCommandResult", d.commandResultHandler)
 
 	d.router.GET("/api/v1/agent/:id/stream/activity", d.agentStartStreamActivityHandler)

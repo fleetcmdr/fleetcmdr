@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -102,11 +101,22 @@ func (d *serverDaemon) viewAgentHandler(w http.ResponseWriter, r *http.Request, 
 
 		log.Printf(sData.SystemData.SPHardwareDataType[0].SerialNumber)
 
-		q := "SELECT date_trunc('hour', ts) FROM checkins WHERE agent_id = $1 AND ts > NOW() - interval '7 days' GROUP BY date_trunc('hour', ts) ORDER BY date_trunc('hour', ts)"
+		var t time.Time
+		q := "SELECT NOW()"
+		err = d.db.QueryRow(q).Scan(&t)
+
+		log.Printf("time: %s", t.String())
+
+		q = "SELECT date_trunc('hour', ts) FROM checkins WHERE agent_id = $1 AND ts > NOW() - interval '7 days' GROUP BY date_trunc('hour', ts) ORDER BY date_trunc('hour', ts)"
 		rows, err := d.db.QueryContext(context.Background(), q, id)
 		if checkError(err) {
 			return
 		}
+
+		// tz, _ := time.LoadLocation("America/Chicago")
+		// tz, _ := time.LoadLocation("UTC")
+
+		// var lastCheckin time.Time
 
 		timestamps := make(map[int64]bool)
 		for rows.Next() {
@@ -116,8 +126,11 @@ func (d *serverDaemon) viewAgentHandler(w http.ResponseWriter, r *http.Request, 
 				return
 			}
 
-			timestamps[ts.UnixMilli()] = true
+			timestamps[ts.UnixMilli()-(60*60*6*1000)] = true
+			// lastCheckin = ts
 		}
+
+		// log.Printf("last checkin: %s", lastCheckin.String())
 
 		type HCPoint struct {
 			X int64 `json:"x"`
@@ -129,7 +142,7 @@ func (d *serverDaemon) viewAgentHandler(w http.ResponseWriter, r *http.Request, 
 		for i := 6 * 24; i >= 0; i-- {
 			// for each day we do not have a timestamp, it should indicate missing hour of checkins
 			v := 0
-			if _, ok := timestamps[time.Now().Truncate(time.Hour).Unix()]; !ok {
+			if _, ok := timestamps[time.Now().Truncate(time.Hour).Add(time.Hour*time.Duration(-i)).UnixMilli()]; ok {
 				v = 1
 			}
 
@@ -311,50 +324,4 @@ func (d *serverDaemon) getScriptsForAgent(id int) ([]Script, error) {
 
 	return scripts, nil
 
-}
-
-func (d *serverDaemon) getAgentCommands(id int) (commands []Command, err error) {
-	q := "SELECT id, ts, input, COALESCE(output,''), scheduled_ts, delivered_ts, executed_ts FROM commands WHERE agent_id = $1 ORDER BY scheduled_ts DESC LIMIT 20"
-	rows, err := d.db.QueryContext(context.Background(), q, id)
-	if checkError(err) {
-		return
-	}
-
-	cmds := []Command{}
-
-	for rows.Next() {
-		c := Command{}
-		err = rows.Scan(&c.ID, &c.TS, &c.Input, &c.Output, &c.ScheduledTS, &c.DeliveredTS, &c.ExecutedTS)
-		if checkError(err) {
-			return
-		}
-
-		if c.ExecutedTS.Valid {
-			c.Executed = true
-		}
-
-		cmds = append([]Command{c}, cmds...)
-	}
-
-	return cmds, nil
-}
-
-type Command struct {
-	ID          int
-	UUID        string
-	TS          time.Time
-	Input       string
-	Output      string
-	ScheduledTS sql.NullTime
-	DeliveredTS sql.NullTime
-	ExecutedTS  sql.NullTime
-	Executed    bool
-}
-
-type darwinSystemData struct {
-	AgentData               *agent
-	SystemData              AppleSystemProfilerOutput
-	Commands                []Command
-	Scripts                 []Script
-	CheckinHistorySparkline template.HTML
 }

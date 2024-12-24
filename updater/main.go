@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -16,13 +17,20 @@ import (
 	"github.com/kardianos/service"
 )
 
+var (
+	versionMajor = 0
+	versionMinor = 0
+	versionPatch = 4
+)
+
 type updaterDaemon struct {
-	daemonCfg   *service.Config
-	daemon      service.Service
-	hc          http.Client
-	programUrl  url.URL
-	installPath string
-	version     semver
+	daemonCfg     *service.Config
+	daemon        service.Service
+	hc            http.Client
+	controlServer string
+	programUrl    url.URL
+	installPath   string
+	version       semver
 }
 
 type agentDaemon struct {
@@ -30,6 +38,7 @@ type agentDaemon struct {
 	daemonCfg             *service.Config
 	daemon                service.Service
 	hc                    http.Client
+	controlServer         string
 	programUrl            url.URL
 	installPath           string
 	version               semver
@@ -38,19 +47,34 @@ type agentDaemon struct {
 	lastSystemDataCheckin time.Time
 }
 
+func (v semver) String() string {
+	return fmt.Sprintf("%d.%d.%d", v.Major, v.Minor, v.Patch)
+}
+
+func (v semver) JSON() string {
+	return fmt.Sprintf(`{"Major": %d, "Minor": %d, "Patch": %d}`, v.Major, v.Minor, v.Patch)
+}
+
 type semver struct {
 	Major int
 	Minor int
 	Patch int
 }
 
+// these control server variables are set with the build script using ldflags
+var controlServerDomain string
+var controlServerPort string
+
 func newDaemon() *updaterDaemon {
 	d := &updaterDaemon{}
 	d.hc.Timeout = time.Minute * 2
 	d.hc.Transport = &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
+	d.controlServer = fmt.Sprintf("%s:%s", controlServerDomain, controlServerPort)
 
 	return d
 }
+
+var currentAgentVersion semver = semver{Major: 0, Minor: 0, Patch: 2}
 
 func main() {
 
@@ -61,8 +85,8 @@ func main() {
 	// localhost listener allows agent to poke and perform on-demand agent updates
 	ud := newDaemon()
 	ud.programUrl.Scheme = "http"
-	ud.programUrl.Host = "localhost:2213"
-	ud.programUrl.Path = fmt.Sprintf("/static/downloads/updater/%s/fc_updater", runtime.GOOS)
+	ud.programUrl.Host = ud.controlServer
+	ud.programUrl.Path = fmt.Sprintf("/static/downloads/%s/%s/fc_updater", runtime.GOOS, runtime.GOARCH)
 	ud.daemonCfg = getPlatformUpdaterConfig()
 	var err error
 	ud.daemon, err = service.New(ud, ud.daemonCfg)
@@ -72,8 +96,8 @@ func main() {
 
 	ad := &agentDaemon{}
 	ad.programUrl.Scheme = "http"
-	ad.programUrl.Host = "localhost:2213"
-	ad.programUrl.Path = fmt.Sprintf("/static/downloads/agent/%s/fc_agent", runtime.GOOS)
+	ad.programUrl.Host = ad.controlServer
+	ad.programUrl.Path = fmt.Sprintf("/static/downloads/%s/%s/fc_agent", runtime.GOOS, runtime.GOARCH)
 	ad.daemonCfg = getPlatformAgentConfig()
 	ad.daemon, err = service.New(ad, ad.daemonCfg)
 	if checkError(err) {
@@ -212,10 +236,46 @@ func (d *agentDaemon) checkForUpdates() (err error) {
 	if checkError(err) {
 		return
 	}
-	retryStage := int64(0)
+	var retryStage int64
+
+	var agentNotResponsive bool
+
+	resp, err := d.hc.Get("http://localhost:22130/api/v1/version")
+	if checkError(err) {
+		agentNotResponsive = true
+		// return
+	}
+
+	var sv semver
+	if !agentNotResponsive {
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if checkError(err) {
+			return err
+		}
+		resp.Body.Close()
+
+		err = json.Unmarshal(bodyBytes, &sv)
+		if checkError(err) {
+			return err
+		}
+
+		resp, err = d.hc.Get(fmt.Sprintf("http://%s/api/v1/check/version/agent/%d/%d/%d", d.controlServer, sv.Major, sv.Minor, sv.Patch))
+		if checkError(err) {
+			return err
+		}
+
+		if resp.StatusCode != http.StatusCreated {
+			return err
+		}
+
+	}
 
 	for {
-		log.Printf("Retrying download of agent")
+		if retryStage == 0 {
+			log.Printf("Trying download of agent")
+		} else {
+			log.Printf("Retrying (try %d) download of agent", retryStage)
+		}
 		err = download(d.programUrl.String(), d.daemonCfg.Executable)
 		if err == nil {
 			log.Printf("Agent download successful")

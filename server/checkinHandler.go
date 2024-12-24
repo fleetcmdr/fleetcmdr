@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/gob"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -21,16 +20,6 @@ type checkinData struct {
 	Serial   string
 	Version  semver
 	Payload  any
-}
-
-type semver struct {
-	Major int
-	Minor int
-	Patch int
-}
-
-func (v semver) string() string {
-	return fmt.Sprintf("%d.%d.%d", v.Major, v.Minor, v.Patch)
 }
 
 func (d *serverDaemon) checkinHandler(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
@@ -55,12 +44,17 @@ func (d *serverDaemon) checkinHandler(w http.ResponseWriter, r *http.Request, pa
 		return
 	}
 
-	log.Printf("Agent (%d) with serial '%s' and version '%s'", cd.ID, cd.Serial, cd.Version.string())
+	var q string
+	log.Printf("Agent (%d) with serial '%s' and version '%s'", cd.ID, cd.Serial, cd.Version.String())
 
-	q := `INSERT INTO checkins (agent_id, v_major, v_minor, v_patch) VALUES ($1,$2,$3,$4)`
-	_, err = d.db.ExecContext(context.Background(), q, cd.ID, cd.Version.Major, cd.Version.Minor, cd.Version.Patch)
-	if checkError(err) {
-		return
+	if cd.Serial != "" {
+		q = `SELECT id FROM agents WHERE serial = $1`
+		err = d.db.QueryRowContext(context.Background(), q, cd.Serial).Scan(&cd.ID)
+		if checkError(err) {
+			return
+		}
+
+		log.Printf("restoring ID %d to agent with serial '%s'", cd.ID, cd.Serial)
 	}
 
 	if cd.ID == 0 {
@@ -102,6 +96,15 @@ func (d *serverDaemon) checkinHandler(w http.ResponseWriter, r *http.Request, pa
 
 	var cr checkinResponse
 	cr.ID = cd.ID
+
+	d.currentAgentVersionLocker.RLock()
+	currentAgentVersion = d.currentAgentVersion
+	d.currentAgentVersionLocker.RUnlock()
+
+	if cd.Version.isOlderThan(currentAgentVersion) {
+		cr.Commands = append(cr.Commands, Command{Special: SpecialUpgrade})
+	}
+
 	cr.Commands = append(cr.Commands, cmds...)
 
 	gob.Register(cr)
@@ -112,6 +115,23 @@ func (d *serverDaemon) checkinHandler(w http.ResponseWriter, r *http.Request, pa
 		return
 	}
 
+}
+
+func (d *serverDaemon) getLatestAgentVersion() {
+	var (
+		major int
+		minor int
+		patch int
+	)
+
+	err := d.db.QueryRowContext(context.Background(), "SELECT major, minor, patch FROM versions WHERE app = 'agent' ORDER BY major desc, minor desc, patch desc LIMIT 1").Scan(&major, &minor, &patch)
+	if checkError(err) {
+		return
+	}
+
+	d.currentAgentVersionLocker.Lock()
+	d.currentAgentVersion = semver{Major: major, Minor: minor, Patch: patch}
+	d.currentAgentVersionLocker.Unlock()
 }
 
 func (d *serverDaemon) systemDataHandler(w http.ResponseWriter, r *http.Request, params httprouter.Params) {

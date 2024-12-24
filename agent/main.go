@@ -10,14 +10,18 @@ import (
 	"github.com/kardianos/service"
 )
 
-const (
+var (
 	versionMajor = 0
 	versionMinor = 0
-	versionPatch = 1
+	versionPatch = 7
 )
 
-func (v semver) string() string {
+func (v semver) String() string {
 	return fmt.Sprintf("%d.%d.%d", v.Major, v.Minor, v.Patch)
+}
+
+func (v semver) JSON() string {
+	return fmt.Sprintf(`{"Major": %d, "Minor": %d, "Patch": %d}`, v.Major, v.Minor, v.Patch)
 }
 
 type agentDaemon struct {
@@ -26,11 +30,12 @@ type agentDaemon struct {
 	daemonCfg             *service.Config
 	daemon                service.Service
 	hc                    http.Client
+	hs                    http.Server
 	programUrl            url.URL
 	installPath           string
 	version               semver
 	debug                 bool
-	cmdHost               string
+	controlServer         string
 	lastSystemDataCheckin time.Time
 	systemData            any
 	commandChan           chan Command
@@ -39,17 +44,20 @@ type agentDaemon struct {
 	doneStreamingChan chan int
 }
 
+// these control server variables are set with the build script using ldflags
+var controlServerDomain string
+var controlServerPort string
+
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
-	log.Printf("Agent starting...")
-
-	cmdHost := "localhost"
 	d := newDaemon()
 	d.daemonCfg = getPlatformAgentConfig()
-	d.cmdHost = fmt.Sprintf("http://%s:2213", cmdHost)
+
 	d.commandChan = make(chan Command, 50)
 	d.doneStreamingChan = make(chan int, 1)
+
+	log.Printf("Agent version %s starting...", d.version.String())
 
 	go d.commandProcessor()
 
@@ -64,5 +72,30 @@ func main() {
 
 func (d *agentDaemon) runAgent() {
 	log.Printf("Agent running")
-	d.checkinProcessor()
+	go d.checkinProcessor()
+
+	d.hs = http.Server{
+		Addr: "localhost:22130",
+	}
+
+	log.Printf("Binding routes...")
+
+	d.bindRoutes()
+
+	log.Printf("Starting agent daemon server...")
+	err := d.hs.ListenAndServe()
+	if checkError(err) {
+		return
+	}
+
+	log.Printf("Shutting down...")
+}
+
+func (d *agentDaemon) bindRoutes() {
+	http.DefaultServeMux.HandleFunc("/api/v1/version", d.versionEchoHandler)
+}
+
+func (d *agentDaemon) versionEchoHandler(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("content-type", "application/json")
+	w.Write([]byte(d.version.JSON()))
 }
