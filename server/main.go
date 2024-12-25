@@ -22,6 +22,9 @@ type serverDaemon struct {
 	db                        *sql.DB
 	currentAgentVersion       semver
 	currentAgentVersionLocker sync.RWMutex
+
+	agentsLocker sync.RWMutex
+	agents       map[int]agent
 }
 
 func parseTemplates() *template.Template {
@@ -56,6 +59,7 @@ func main() {
 	d.db = InitializePgSQLDatabase("localhost", "fleetcmdr", os.Getenv("FLEETCMDR_PGSQL_USER"), os.Getenv("FLEETCMDR_PGSQL_PASS"))
 	d.router = httprouter.New()
 	d.templates = parseTemplates()
+	d.agents = make(map[int]agent)
 
 	d.hs = http.Server{
 		Addr:    "localhost:2213",

@@ -9,50 +9,142 @@ import (
 	"io"
 	"log"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 )
 
 type Activity struct {
 	CPUConsumedPercent           float64
-	MemoryConsumedBytes          int
-	DiskIOOperationsPerSecond    int     // unknown
-	DiskLatencyMilliseconds      float64 // < 1 is good?
+	MemoryPressurePercent        int64
+	DiskIOOperationsPerSecond    int     // `ioutil -d`` unknown baseline
+	DiskLatencyMilliseconds      float64 //  < 1 is good?
+	DiskSizeBytes                int
+	DiskUsedBytes                int
 	NetworkUploadBytesPerSecond  int
 	NetworkDownloadBytesPerSeond int
 }
 
-func monitorActivity(activityChan chan Activity) {
-	// collect and send metrics to channel
-}
-
-func sendActivityMoment(activityChan chan Activity) {
-	// retrieve activity, send to server
-}
+const streamActivityMomentPath string = "/api/v1/agent/%d/stream/activity/"
 
 func (d *agentDaemon) streamActivity() {
 
-	ticker := time.NewTicker(time.Second)
-
-	// begin collecting metrics asynchronously
-	// we will then send the latest set of data every second
-
-	var activityChan chan Activity
-
-	go monitorActivity(activityChan)
-
+	ticker := time.NewTicker(time.Second * 5)
 	for {
-
 		select {
-		case <-ticker.C:
-			// collect metrics
-
-			// send metrics to server
-			go sendActivityMoment(activityChan)
 		case <-d.doneStreamingChan:
+			d.streamingActivity = false
 			return
-		}
+		case <-ticker.C:
+			var a Activity
+			// collect and send metrics to channel
+			log.Printf("Gathering CPU data")
+			cpuPercent := "ps -A -o %cpu | awk '{s+=$1} END {print s}'"
+			out, err := run(cpuPercent)
+			if checkError(err) {
+				return
+			}
+			// cmd := exec.Command("ps", "-A", "-o", "%%cpu", "|", "awk", "'{s+=$1} END {print s}'")
+			// out, err := cmd.CombinedOutput()
 
+			out = strings.TrimSpace(out)
+			log.Printf(out)
+
+			a.CPUConsumedPercent, err = strconv.ParseFloat(string(out), 32)
+			if checkError(err) {
+				return
+			}
+
+			log.Printf("Gathering memory data")
+			memoryPressure := "memory_pressure | grep 'free percentage' | awk -F': ' '{print $2}'"
+
+			out, err = run(memoryPressure)
+			if checkError(err) {
+				return
+			}
+
+			out = strings.ReplaceAll(out, "%", "")
+			out = strings.TrimSpace(out)
+			log.Printf(string(out))
+
+			a.MemoryPressurePercent, err = strconv.ParseInt(out, 10, 32)
+			if checkError(err) {
+				return
+			}
+
+			log.Printf("Gathering disk data")
+			diskConsumed := "df -h | grep -i '/system/volumes/data$' | awk '{print $2,$3}'"
+			out, err = run(diskConsumed)
+			if checkError(err) {
+				return
+			}
+
+			out = strings.TrimSpace(out)
+			log.Print(string(out))
+
+			var diskSizeBytes int64
+			var diskUsedBytes int64
+
+			outSplit := strings.Split(string(out), " ")
+			switch {
+			case strings.HasSuffix(outSplit[0], "Ti"):
+				sizeBytesStr := strings.ReplaceAll(outSplit[0], "Ti", "")
+				sizeBytes, err := strconv.ParseInt(sizeBytesStr, 10, 64)
+				if checkError(err) {
+					return
+				}
+
+				diskSizeBytes = sizeBytes * (1024 ^ 4)
+			case strings.HasSuffix(outSplit[0], "Gi"):
+				sizeBytesStr := strings.ReplaceAll(outSplit[0], "Gi", "")
+				sizeBytes, err := strconv.ParseInt(sizeBytesStr, 10, 64)
+				if checkError(err) {
+					return
+				}
+
+				diskSizeBytes = sizeBytes * (1024 ^ 3)
+			}
+
+			switch {
+			case strings.HasSuffix(outSplit[1], "Ti"):
+				sizeBytesStr := strings.ReplaceAll(outSplit[1], "Ti", "")
+				sizeBytes, err := strconv.ParseInt(sizeBytesStr, 10, 64)
+				if checkError(err) {
+					return
+				}
+
+				diskSizeBytes = sizeBytes * (1024 ^ 4)
+			case strings.HasSuffix(outSplit[1], "Gi"):
+				sizeBytesStr := strings.ReplaceAll(outSplit[1], "Gi", "")
+				sizeBytes, err := strconv.ParseInt(sizeBytesStr, 10, 64)
+				if checkError(err) {
+					return
+				}
+
+				diskUsedBytes = sizeBytes * (1024 ^ 3)
+			}
+
+			a.DiskSizeBytes = int(diskSizeBytes)
+			a.DiskUsedBytes = int(diskUsedBytes)
+			log.Printf("Disk size: %s, Consumed: %s", BytesToHuman(diskSizeBytes), BytesToHuman(diskUsedBytes))
+
+			log.Printf("Activity: %#v", a)
+
+			gob.Register(a)
+
+			b := &bytes.Buffer{}
+			ge := gob.NewEncoder(b)
+			err = ge.Encode(a)
+			if checkError(err) {
+				return
+			}
+
+			_, err = d.hc.Post(fmt.Sprintf("%s://%s/%s", d.programUrl.Scheme, d.controlServer, fmt.Sprintf(streamActivityMomentPath, d.ID)), "application/octet-stream", b)
+			if checkError(err) {
+				return
+			}
+
+		}
 	}
 
 }

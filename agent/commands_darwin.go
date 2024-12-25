@@ -13,9 +13,12 @@ import (
 func run(command string) (string, error) {
 
 	//command = fmt.Sprintf(`$(/bin/bash -c "%s")`, command)
-	log.Printf("Running command \"%s\"", command)
+	log.Printf("Running command \"%s\"", "/bin/bash -c \""+command+"\"")
 
-	args := quotedStringSplit(command)
+	args, err := quotedStringSplit("/bin/bash -c \"" + command + "\"")
+	if checkError(err) {
+		return "", err
+	}
 	//log.Printf("%+v", args)
 
 	ctx, cf := context.WithTimeout(context.Background(), time.Minute)
@@ -31,10 +34,11 @@ func run(command string) (string, error) {
 
 	out, err := cmd.CombinedOutput()
 	if checkError(err) {
+		log.Printf("out: %s", string(out))
 		return "", err
 	}
 
-	//log.Printf("Output: %s", string(out))
+	log.Printf("Output: %s", string(out))
 
 	//err = cmd.Wait()
 	//if checkError(err) {

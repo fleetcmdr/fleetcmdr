@@ -121,6 +121,6 @@ func PrintErrorN(err error, callerOffset int) {
 	file, line = GetFileAndLine(callerOffset)
 	file = filepath.Base(file)
 
-	fmt.Printf("%s:%d: %s\n", file, line, err.Error())
+	log.Printf("%s:%d: %s\n", file, line, err.Error())
 
 }

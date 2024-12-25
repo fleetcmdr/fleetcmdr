@@ -1,53 +1,106 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
+	"fmt"
+	"strings"
 )
 
-func quotedStringSplit(input string) []string {
+// func quotedStringSplit(input string) []string {
 
-	b := bytes.NewBuffer([]byte(input))
-	s := bufio.NewScanner(b)
+// 	b := bytes.NewBuffer([]byte(input))
+// 	s := bufio.NewScanner(b)
 
-	var output []string
+// 	var output []string
 
-	var modeSingleQuote bool
-	var modeDoubleQuote bool
+// 	var modeSingleQuote bool
+// 	var modeDoubleQuote bool
 
-	var outBuf string
+// 	var outBuf string
 
-	s.Split(bufio.ScanWords)
+// 	s.Split(bufio.ScanWords)
 
-	for s.Scan() {
-		t := s.Text()
-		//log.Printf("Token: %s", s.Text())
-		outBuf = ""
-		switch t {
-		case `"`:
-			modeDoubleQuote = !modeDoubleQuote
-			if modeDoubleQuote {
-				outBuf = outBuf + t
+// 	for s.Scan() {
+// 		t := s.Text()
+// 		//log.Printf("Token: %s", s.Text())
+// 		outBuf = ""
+// 		switch t {
+// 		case `"`:
+// 			modeDoubleQuote = !modeDoubleQuote
+// 			if modeDoubleQuote {
+// 				outBuf = outBuf + t
+// 			} else {
+// 				output = append(output, outBuf)
+// 			}
+// 		case `'`:
+// 			modeSingleQuote = !modeSingleQuote
+// 			if modeSingleQuote {
+// 				outBuf = outBuf + t
+// 			} else {
+// 				output = append(output, outBuf)
+// 			}
+// 		case " ":
+// 			if !modeSingleQuote && !modeDoubleQuote {
+// 				output = append(output, outBuf)
+// 			}
+// 		default:
+// 			outBuf = outBuf + t
+// 			output = append(output, outBuf)
+// 		}
+
+// 	}
+
+// 	return output
+// }
+
+// ParseCommand splits a command string into tokens, preserving quoted substrings.
+func quotedStringSplit(input string) ([]string, error) {
+	var tokens []string
+	var currentToken strings.Builder
+	var inQuotes bool
+	var quoteChar rune
+
+	for i, char := range input {
+		switch char {
+		case '"', '\'':
+			if inQuotes {
+				// End quote if it matches the current quote character
+				if char == quoteChar {
+					inQuotes = false
+					tokens = append(tokens, currentToken.String())
+					currentToken.Reset()
+				} else {
+					// Append mismatched quotes as part of the token
+					currentToken.WriteRune(char)
+				}
 			} else {
-				output = append(output, outBuf)
+				// Start a quoted string
+				inQuotes = true
+				quoteChar = char
 			}
-		case `'`:
-			modeSingleQuote = !modeSingleQuote
-			if modeSingleQuote {
-				outBuf = outBuf + t
+		case ' ':
+			if inQuotes {
+				// Treat spaces inside quotes as part of the token
+				currentToken.WriteRune(char)
 			} else {
-				output = append(output, outBuf)
-			}
-		case " ":
-			if !modeSingleQuote && !modeDoubleQuote {
-				output = append(output, outBuf)
+				// End the current token and start a new one
+				if currentToken.Len() > 0 {
+					tokens = append(tokens, currentToken.String())
+					currentToken.Reset()
+				}
 			}
 		default:
-			outBuf = outBuf + t
-			output = append(output, outBuf)
+			// Append regular characters to the current token
+			currentToken.WriteRune(char)
 		}
 
+		// Handle the last token if we're at the end of the input
+		if i == len(input)-1 && currentToken.Len() > 0 {
+			if inQuotes {
+				return nil, fmt.Errorf("unterminated quote detected")
+			}
+			tokens = append(tokens, currentToken.String())
+		}
 	}
 
-	return output
+	return tokens, nil
 }

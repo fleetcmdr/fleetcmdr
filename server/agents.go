@@ -18,22 +18,17 @@ type agent struct {
 	ID                  int
 	ClientID            int
 	Name                string
+	Alias               sql.NullString
+	ModelID             sql.NullInt64
+	MfgID               sql.NullInt64
 	Serial              string
 	Deleted             time.Time
 	OS                  string
+	Arch                string
 	SystemData          string
 	CPUCountPerformance int
 	CPUCountEfficiency  int
-}
-
-func (d *serverDaemon) agentStartStreamActivityHandler(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
-	// we want to get agent streaming updates as soon as possible
-
-}
-
-func (d *serverDaemon) agentEndStreamActivityHandler(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
-	// shut down the stream
-
+	StreamingActivity   bool
 }
 
 func (d *serverDaemon) getAgents(limit, skip int) []*agent {
@@ -71,16 +66,6 @@ func (d *serverDaemon) getAgentByID(id int) (*agent, error) {
 	}
 
 	return a, nil
-}
-
-func (d *serverDaemon) startStreamingAgentData(id int) {
-	// tell agent to begin streaming activity data live
-	// we want CPU, RAM, Disk, and Network activity
-
-}
-
-func (d *serverDaemon) finishStreamingAgentData(id int) {
-	// tell agent it can cease
 }
 
 func (d *serverDaemon) commandHistoryForAgentHandler(w http.ResponseWriter, req *http.Request, params httprouter.Params) {

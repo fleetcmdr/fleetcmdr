@@ -30,6 +30,7 @@ func (d *serverDaemon) bindRoutes() {
 	d.router.POST("/api/v1/sendCommandResult", d.commandResultHandler)
 
 	d.router.GET("/api/v1/agent/:id/stream/activity", d.agentStartStreamActivityHandler)
+	d.router.POST("/api/v1/agent/:id/stream/activity", d.agentStreamActivityMomentHandler)
 	d.router.DELETE("/api/v1/agent/:id/stream/activity", d.agentEndStreamActivityHandler)
 
 	// Results for 1 command

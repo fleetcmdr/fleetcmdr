@@ -97,6 +97,26 @@ func (d *serverDaemon) checkinHandler(w http.ResponseWriter, r *http.Request, pa
 	var cr checkinResponse
 	cr.ID = cd.ID
 
+	var a agent
+	d.agentsLocker.RLock()
+	a, ok := d.agents[cr.ID]
+	d.agentsLocker.RUnlock()
+	if !ok {
+		q = "SELECT id, client_id, host_name, alias, model_id, mfg_id, serial, os, arch, streaming_activity FROM agents WHERE id = $1"
+		err = d.db.QueryRowContext(context.Background(), q, cr.ID).Scan(&a.ID, &a.ClientID, &a.Name, &a.Alias, &a.ModelID, &a.MfgID, &a.Serial, &a.OS, &a.Arch, &a.StreamingActivity)
+		if checkError(err) {
+			return
+		}
+
+		d.agentsLocker.Lock()
+		d.agents[cr.ID] = a
+		d.agentsLocker.Unlock()
+	}
+
+	log.Printf("Agent data: %#v", a)
+
+	cr.StreamActivity = a.StreamingActivity
+
 	d.currentAgentVersionLocker.RLock()
 	currentAgentVersion = d.currentAgentVersion
 	d.currentAgentVersionLocker.RUnlock()

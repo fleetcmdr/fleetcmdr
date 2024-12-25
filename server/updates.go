@@ -92,7 +92,6 @@ func (d *serverDaemon) buildAppHandler(w http.ResponseWriter, req *http.Request,
 		return
 	}
 	cmd.Dir = filepath.Join(wd, dir)
-	log.Printf("Running command at '%s'", cmd.Dir)
 
 	out, err := cmd.CombinedOutput()
 	if checkError(err) {
