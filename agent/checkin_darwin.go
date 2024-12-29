@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"runtime"
 	"strconv"
 	"strings"
@@ -33,12 +34,13 @@ func (d *agentDaemon) streamActivity() {
 	for {
 		select {
 		case <-d.doneStreamingChan:
+			log.Printf("ceasing streaming activity")
 			d.streamingActivity = false
 			return
 		case <-ticker.C:
 			var a Activity
 			// collect and send metrics to channel
-			log.Printf("Gathering CPU data")
+			// log.Printf("Gathering CPU data")
 			cpuPercent := "ps -A -o %cpu | awk '{s+=$1} END {print s}'"
 			out, err := run(cpuPercent)
 			if checkError(err) {
@@ -48,14 +50,14 @@ func (d *agentDaemon) streamActivity() {
 			// out, err := cmd.CombinedOutput()
 
 			out = strings.TrimSpace(out)
-			log.Printf(out)
+			// log.Printf(out)
 
 			a.CPUConsumedPercent, err = strconv.ParseFloat(string(out), 32)
 			if checkError(err) {
 				return
 			}
 
-			log.Printf("Gathering memory data")
+			// log.Printf("Gathering memory data")
 			memoryPressure := "memory_pressure | grep 'free percentage' | awk -F': ' '{print $2}'"
 
 			out, err = run(memoryPressure)
@@ -65,14 +67,14 @@ func (d *agentDaemon) streamActivity() {
 
 			out = strings.ReplaceAll(out, "%", "")
 			out = strings.TrimSpace(out)
-			log.Printf(string(out))
+			// log.Printf(string(out))
 
 			a.MemoryPressurePercent, err = strconv.ParseInt(out, 10, 32)
 			if checkError(err) {
 				return
 			}
 
-			log.Printf("Gathering disk data")
+			// log.Printf("Gathering disk data")
 			diskConsumed := "df -h | grep -i '/system/volumes/data$' | awk '{print $2,$3}'"
 			out, err = run(diskConsumed)
 			if checkError(err) {
@@ -80,7 +82,7 @@ func (d *agentDaemon) streamActivity() {
 			}
 
 			out = strings.TrimSpace(out)
-			log.Print(string(out))
+			// log.Print(string(out))
 
 			var diskSizeBytes int64
 			var diskUsedBytes int64
@@ -126,9 +128,9 @@ func (d *agentDaemon) streamActivity() {
 
 			a.DiskSizeBytes = int(diskSizeBytes)
 			a.DiskUsedBytes = int(diskUsedBytes)
-			log.Printf("Disk size: %s, Consumed: %s", BytesToHuman(diskSizeBytes), BytesToHuman(diskUsedBytes))
+			// log.Printf("Disk size: %s, Consumed: %s", BytesToHuman(diskSizeBytes), BytesToHuman(diskUsedBytes))
 
-			log.Printf("Activity: %#v", a)
+			// log.Printf("Activity: %#v", a)
 
 			gob.Register(a)
 
@@ -139,9 +141,14 @@ func (d *agentDaemon) streamActivity() {
 				return
 			}
 
-			_, err = d.hc.Post(fmt.Sprintf("%s://%s/%s", d.programUrl.Scheme, d.controlServer, fmt.Sprintf(streamActivityMomentPath, d.ID)), "application/octet-stream", b)
+			resp, err := d.hc.Post(fmt.Sprintf("%s://%s/%s", d.programUrl.Scheme, d.controlServer, fmt.Sprintf(streamActivityMomentPath, d.ID)), "application/octet-stream", b)
 			if checkError(err) {
 				return
+			}
+
+			if resp.StatusCode == http.StatusNoContent {
+				// cease streaming
+				d.doneStreamingChan <- 1
 			}
 
 		}
@@ -194,6 +201,14 @@ func (d *agentDaemon) checkin() {
 			d.streamingActivity = true
 			log.Printf("Starting stream of activity data")
 			go d.streamActivity()
+		}
+	}
+
+	if !cr.StreamActivity {
+		if d.streamingActivity {
+			d.streamingActivity = false
+			log.Printf("Ending stream of activity data")
+			d.doneStreamingChan <- 1
 		}
 	}
 

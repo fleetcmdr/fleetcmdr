@@ -66,6 +66,7 @@
         <div class="col">
         <!--Add a set of rings? CPU/Mem/Disk for live activity, with a history sparkline of some kind below-->
         <div class="btn btn-primary" hx-trigger="click" hx-get="/api/v1/agent/{{.AgentData.ID}}/stream/activity" hx-swap="none">Start Streaming</div>
+        <div class="btn btn-danger" hx-trigger="click" hx-delete="/api/v1/agent/{{.AgentData.ID}}/stream/activity" hx-swap="none">Stop Streaming</div>
         <div class="btn btn-primary" hx-trigger="click" hx-get="/api/v1/build/agent" hx-swap="none">Rebuild Agent</div>
         <div class="btn btn-primary" hx-trigger="click" hx-get="/api/v1/build/updater" hx-swap="none">Rebuild Updater</div>
         <div id='activityInstantaneousChart'></div>

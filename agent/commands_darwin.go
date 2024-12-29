@@ -38,7 +38,7 @@ func run(command string) (string, error) {
 		return "", err
 	}
 
-	log.Printf("Output: %s", string(out))
+	// log.Printf("Output: %s", string(out))
 
 	//err = cmd.Wait()
 	//if checkError(err) {

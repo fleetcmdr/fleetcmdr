@@ -23,11 +23,16 @@ type Activity struct {
 
 func (d *serverDaemon) agentStreamActivityMomentHandler(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
 
+	agendIDStr := params.ByName("id")
+	agentID, err := strconv.Atoi(agendIDStr)
+	if checkError(err) {
+		return
+	}
+
 	var a Activity
 
 	gob.Register(a)
 
-	var err error
 	ge := gob.NewDecoder(req.Body)
 	err = ge.Decode(&a)
 	if checkError(err) {
@@ -35,6 +40,13 @@ func (d *serverDaemon) agentStreamActivityMomentHandler(w http.ResponseWriter, r
 	}
 
 	log.Printf("received activity: %#v", a)
+
+	d.agentsLocker.RLock()
+	v := d.agents[agentID]
+	d.agentsLocker.RUnlock()
+	if !v.StreamingActivity {
+		w.WriteHeader(http.StatusNoContent)
+	}
 }
 
 func (d *serverDaemon) agentStartStreamActivityHandler(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
