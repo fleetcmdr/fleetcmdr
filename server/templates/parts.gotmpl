@@ -1,6 +1,6 @@
 {{ define "leftNav" }}
         <div class="row">
-            <div class="col"><h2>FleetCmdr</h2></div>
+            <div class="col"></div>
         </div>
         <h3>Agents</h3>
         <hr/>
@@ -21,13 +21,20 @@
 {{$agentData := .AgentData}}
 <div class="row">
     <div class="col">
-        <h3>{{ .AgentData.Name }}</h3>
 
         <div class="row">
         
         <!-- General info -->
         <div class="col">
         <table class="table">
+        <tr>
+            <td>
+                <h3>{{ .AgentData.Name }}</h3>
+            </td>
+            <td>
+                <div class="btn btn-danger" hx-trigger="click" hx-delete="/api/v1/agent/{{.AgentData.ID}}/stream/activity" hx-swap="none" hx-on:click='document.getElementById("main-content").replaceChildren()'>Close</div>
+            </td>
+        </tr>
         <tr>
             <td class='agent_field_name'>Serial</td><td>{{ .AgentData.Serial }}</td>
         </tr>
@@ -65,11 +72,12 @@
         <!-- Activity viewer -->
         <div class="col">
         <!--Add a set of rings? CPU/Mem/Disk for live activity, with a history sparkline of some kind below-->
-        <div class="btn btn-primary" hx-trigger="click" hx-get="/api/v1/agent/{{.AgentData.ID}}/stream/activity" hx-swap="none">Start Streaming</div>
-        <div class="btn btn-danger" hx-trigger="click" hx-delete="/api/v1/agent/{{.AgentData.ID}}/stream/activity" hx-swap="none">Stop Streaming</div>
-        <div class="btn btn-primary" hx-trigger="click" hx-get="/api/v1/build/agent" hx-swap="none">Rebuild Agent</div>
-        <div class="btn btn-primary" hx-trigger="click" hx-get="/api/v1/build/updater" hx-swap="none">Rebuild Updater</div>
-        <div id='activityInstantaneousChart'></div>
+        <!--<div class="btn btn-primary" hx-trigger="click" hx-get="/api/v1/agent/{{.AgentData.ID}}/stream/activity" hx-swap="none">Start Streaming</div>-->
+
+        <div id="cpu_activity" class="progress" role="progressbar" aria-label="CPU Percent" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100">
+          <div class="progress-bar bg-success progress-bar-animated" style="width: 0%" hx-trigger="every 2s" hx-get="/api/v1/agent/{{.AgentData.ID}}/stream/read/cpu" >Unknown</div>
+        </div>
+        <div id='activity_instantaneous_chart'></div>
         
         </div>
 

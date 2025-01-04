@@ -21,7 +21,7 @@ type semver struct {
 
 func newDaemon() *agentDaemon {
 	d := &agentDaemon{}
-	d.hc.Timeout = time.Minute * 2
+	d.hc.Timeout = time.Second * 30
 	d.hc.Transport = &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
 	d.controlServer = fmt.Sprintf("%s:%s", controlServerDomain, controlServerPort)
 	d.programUrl.Scheme = "http"

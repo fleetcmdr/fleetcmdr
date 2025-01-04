@@ -13,7 +13,7 @@ import (
 var (
 	versionMajor = 0
 	versionMinor = 0
-	versionPatch = 50
+	versionPatch = 56
 )
 
 func (v semver) String() string {

@@ -98,6 +98,8 @@ func (d *serverDaemon) buildAppHandler(w http.ResponseWriter, req *http.Request,
 		return
 	}
 
+	d.getLatestAgentVersion()
+
 	log.Printf("done building: %s", string(out))
 
 }

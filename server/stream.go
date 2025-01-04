@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"encoding/gob"
+	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -21,7 +23,45 @@ type Activity struct {
 	NetworkDownloadBytesPerSeond int
 }
 
-func (d *serverDaemon) agentStreamActivityMomentHandler(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
+func (d *serverDaemon) agentStreamActivityReaderHandler(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
+
+	agendIDStr := params.ByName("id")
+	agentID, err := strconv.Atoi(agendIDStr)
+	if checkError(err) {
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+
+	activityName := params.ByName("ActivityName")
+
+	var a Activity
+
+	d.agentsLocker.RLock()
+	v := d.agents[agentID]
+	d.agentsLocker.RUnlock()
+	if v.LatestActivityLocker == nil {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	v.LatestActivityLocker.RLock()
+	a = v.LatestActivity
+	v.LatestActivityLocker.RUnlock()
+
+	switch activityName {
+	case "cpu":
+		w.Write([]byte(fmt.Sprintf("{\"cpu\": %.1f}", a.CPUConsumedPercent)))
+		return
+	}
+
+	jsonBytes, err := json.Marshal(a)
+	if checkError(err) {
+		return
+	}
+
+	w.Write(jsonBytes)
+}
+
+func (d *serverDaemon) agentStreamActivityMomentReaderHandler(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
 
 	agendIDStr := params.ByName("id")
 	agentID, err := strconv.Atoi(agendIDStr)
@@ -31,20 +71,55 @@ func (d *serverDaemon) agentStreamActivityMomentHandler(w http.ResponseWriter, r
 
 	var a Activity
 
-	gob.Register(a)
+	d.agentsLocker.RLock()
+	v := d.agents[agentID]
+	d.agentsLocker.RUnlock()
+	v.LatestActivityLocker.RLock()
+	a = v.LatestActivity
+	v.LatestActivityLocker.RUnlock()
 
-	ge := gob.NewDecoder(req.Body)
-	err = ge.Decode(&a)
+	jsonBytes, err := json.Marshal(a)
 	if checkError(err) {
 		return
 	}
 
-	log.Printf("received activity: %#v", a)
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(jsonBytes)
+}
 
-	d.agentsLocker.RLock()
-	v := d.agents[agentID]
-	d.agentsLocker.RUnlock()
-	if !v.StreamingActivity {
+func (d *serverDaemon) agentStreamActivityMomentHandler(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
+
+	agendIDStr := params.ByName("id")
+	agentID, err := strconv.Atoi(agendIDStr)
+	if checkError(err) {
+		return
+	}
+
+	var act Activity
+
+	gob.Register(act)
+
+	ge := gob.NewDecoder(req.Body)
+	err = ge.Decode(&act)
+	if checkError(err) {
+		return
+	}
+
+	log.Printf("received activity: %#v", act)
+
+	d.agentsLocker.Lock()
+	a, ok := d.agents[agentID]
+	d.agentsLocker.Unlock()
+	if !ok {
+		a, err = d.getAgentByID(agentID)
+		if checkError(err) {
+			return
+		}
+	}
+	a.LatestActivityLocker.Lock()
+	a.LatestActivity = act
+	a.LatestActivityLocker.Unlock()
+	if !a.StreamingActivity {
 		w.WriteHeader(http.StatusNoContent)
 	}
 }
@@ -66,9 +141,9 @@ func (d *serverDaemon) agentStartStreamActivityHandler(w http.ResponseWriter, re
 
 	d.agentsLocker.Lock()
 	v := d.agents[agentID]
+	d.agentsLocker.Unlock()
 	v.StreamingActivity = true
 	d.agents[agentID] = v
-	d.agentsLocker.Unlock()
 
 }
 
@@ -89,8 +164,8 @@ func (d *serverDaemon) agentEndStreamActivityHandler(w http.ResponseWriter, req 
 
 	d.agentsLocker.Lock()
 	v := d.agents[agentID]
+	d.agentsLocker.Unlock()
 	v.StreamingActivity = false
 	d.agents[agentID] = v
-	d.agentsLocker.Unlock()
 
 }

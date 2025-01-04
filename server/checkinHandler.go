@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/julienschmidt/httprouter"
@@ -101,19 +102,19 @@ func (d *serverDaemon) checkinHandler(w http.ResponseWriter, r *http.Request, pa
 	d.agentsLocker.RLock()
 	a, ok := d.agents[cr.ID]
 	d.agentsLocker.RUnlock()
+
 	if !ok {
-		q = "SELECT id, client_id, host_name, alias, model_id, mfg_id, serial, os, arch, streaming_activity FROM agents WHERE id = $1"
-		err = d.db.QueryRowContext(context.Background(), q, cr.ID).Scan(&a.ID, &a.ClientID, &a.Name, &a.Alias, &a.ModelID, &a.MfgID, &a.Serial, &a.OS, &a.Arch, &a.StreamingActivity)
+		a, err = d.getAgentByID(cr.ID)
 		if checkError(err) {
 			return
 		}
-
 		d.agentsLocker.Lock()
+		a.LatestActivityLocker = &sync.RWMutex{}
 		d.agents[cr.ID] = a
 		d.agentsLocker.Unlock()
 	}
 
-	log.Printf("Agent data: %#v", a)
+	// log.Printf("Agent data: %#v", a)
 
 	cr.StreamActivity = a.StreamingActivity
 

@@ -102,9 +102,10 @@ const (
 )
 
 type darwinSystemData struct {
-	AgentData               *agent
-	SystemData              AppleSystemProfilerOutput
-	Commands                []Command
-	Scripts                 []Script
-	CheckinHistorySparkline template.HTML
+	AgentData                  agent
+	SystemData                 AppleSystemProfilerOutput
+	Commands                   []Command
+	Scripts                    []Script
+	CheckinHistorySparkline    template.HTML
+	ActivityInstantaneousChart template.HTML
 }

@@ -21,9 +21,9 @@ type serverDaemon struct {
 	templates                 *template.Template
 	db                        *sql.DB
 	currentAgentVersion       semver
-	currentAgentVersionLocker sync.RWMutex
+	currentAgentVersionLocker *sync.RWMutex
 
-	agentsLocker sync.RWMutex
+	agentsLocker *sync.RWMutex
 	agents       map[int]agent
 }
 
@@ -55,11 +55,12 @@ func main() {
 
 	d := &serverDaemon{}
 
-	// d.db = InitializeMySQLDatabase("localhost", "fleetcmdr", os.Getenv("FLEETCMDR_MYSQL_USER"), os.Getenv("FLEETCMDR_MYSQL_PASS"))
 	d.db = InitializePgSQLDatabase("localhost", "fleetcmdr", os.Getenv("FLEETCMDR_PGSQL_USER"), os.Getenv("FLEETCMDR_PGSQL_PASS"))
 	d.router = httprouter.New()
 	d.templates = parseTemplates()
 	d.agents = make(map[int]agent)
+	d.agentsLocker = &sync.RWMutex{}
+	d.currentAgentVersionLocker = &sync.RWMutex{}
 
 	d.hs = http.Server{
 		Addr:    "localhost:2213",

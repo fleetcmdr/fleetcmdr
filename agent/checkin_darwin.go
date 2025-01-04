@@ -26,8 +26,6 @@ type Activity struct {
 	NetworkDownloadBytesPerSeond int
 }
 
-const streamActivityMomentPath string = "/api/v1/agent/%d/stream/activity/"
-
 func (d *agentDaemon) streamActivity() {
 
 	ticker := time.NewTicker(time.Second * 5)
@@ -143,7 +141,7 @@ func (d *agentDaemon) streamActivity() {
 
 			resp, err := d.hc.Post(fmt.Sprintf("%s://%s/%s", d.programUrl.Scheme, d.controlServer, fmt.Sprintf(streamActivityMomentPath, d.ID)), "application/octet-stream", b)
 			if checkError(err) {
-				return
+				// return
 			}
 
 			if resp.StatusCode == http.StatusNoContent {
@@ -178,7 +176,7 @@ func (d *agentDaemon) checkin() {
 	}
 
 	resp, err := d.hc.Post(fmt.Sprintf("%s://%s/%s", d.programUrl.Scheme, d.controlServer, checkinPath), "application/octet-stream", b)
-	if checkError(err) {
+	if !errors.Is(err, io.EOF) && checkError(err) {
 		return
 	}
 	defer resp.Body.Close()
@@ -194,7 +192,11 @@ func (d *agentDaemon) checkin() {
 
 	d.ID = cr.ID
 
-	log.Printf("Received from server: %#v", cr)
+	if cr.Commands != nil {
+		log.Printf("Received commands from server: %#v", cr)
+	} else {
+		log.Printf("Received no commands from server")
+	}
 
 	if cr.StreamActivity {
 		if !d.streamingActivity {

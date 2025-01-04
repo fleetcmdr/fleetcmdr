@@ -12,11 +12,39 @@
     </head>
     <link href="/static/css/bootstrap.min.css" rel="stylesheet" />
     <link href="/static/css/app.css" rel="stylesheet" />
-    <script type="application/javascript" src="/static/js/bootstrap.min.js"></script>
+    <script type="application/javascript" src="/static/js/bootstrap.bundle.min.js"></script>
     <body>
     <div class="content px-4">
+        <nav class="navbar navbar-expand-lg bg-body-tertiary" id="topNav">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="#">FleetCmdr</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+                  <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                  <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                      <a class="nav-link active" aria-current="page" href="#">Home</a>
+                    </li>
+                    <li class="nav-item">
+                      <a class="nav-link" href="#">Link</a>
+                    </li>
+                    <li class="nav-item dropdown">
+                      <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        Utilities
+                      </a>
+                      <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#" hx-trigger="click" hx-get="/api/v1/build/agent" hx-swap="none">Build Agent</a></li>
+                        <li><a class="dropdown-item" href="#" hx-trigger="click" hx-get="/api/v1/build/updater" hx-swap="none">Build Updater</a></li>
+                      </ul>
+
+                  </ul>
+                </div>
+
+            </div>
+        </nav>
         <div class="row gx-5">
-            <nav class="col col-3" id="leftNav" hx-trigger="load" hx-get="/api/v1/parts/leftNav" class=""></nav>
+            <nav class="col col-3" id="leftNav" hx-trigger="load" hx-get="/api/v1/parts/leftNav"></nav>
             <main class="col col-9 justify-content-between" id="main-content" class="container text-container"></main>
         </div>
     </div>

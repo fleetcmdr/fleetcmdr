@@ -6,9 +6,10 @@ import (
 )
 
 const (
-	checkinPath       string = "/api/v1/checkin"
-	systemDataPath           = "/api/v1/sendSystemData"
-	commandResultPath        = "/api/v1/sendCommandResult"
+	checkinPath              string = "/api/v1/checkin"
+	systemDataPath                  = "/api/v1/sendSystemData"
+	commandResultPath               = "/api/v1/sendCommandResult"
+	streamActivityMomentPath        = "/api/v1/agent/%d/stream/activity/"
 )
 
 func (d *agentDaemon) checkinProcessor() {

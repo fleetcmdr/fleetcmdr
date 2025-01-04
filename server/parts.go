@@ -168,7 +168,7 @@ func (d *serverDaemon) viewAgentHandler(w http.ResponseWriter, r *http.Request, 
 
 		// log.Printf("points: '%s'", string(jsonBytes))
 
-		highchart := fmt.Sprintf(`<script>Highcharts.chart('checkin_history_sparkline', {
+		checkinHistorySparkline := fmt.Sprintf(`<script>Highcharts.chart('checkin_history_sparkline', {
             chart: {
                 type: 'area',
                 margin: [0,0,0,0],
@@ -205,7 +205,121 @@ func (d *serverDaemon) viewAgentHandler(w http.ResponseWriter, r *http.Request, 
             series: [{color: '#00FF00', data: %s}],
         })</script>`, string(jsonBytes))
 
-		sData.CheckinHistorySparkline = template.HTML(highchart)
+		activityInstantaneousChart := fmt.Sprintf(`<script>Highcharts.chart('cpu_instantaneous_chart', {
+                chart: {
+                type: 'solidgauge',
+                height: '110%%',
+                events: {
+                    render: renderIcons
+                }
+            },
+
+            title: {
+                text: 'Multiple KPI gauge',
+                style: {
+                    fontSize: '24px'
+                }
+            },
+
+            tooltip: {
+                borderWidth: 0,
+                backgroundColor: 'none',
+                shadow: false,
+                style: {
+                    fontSize: '16px'
+                },
+                valueSuffix: '%%',
+                pointFormat: '{series.name}<br>' +
+                    '<span style="font-size: 2em; color: {point.color}; ' +
+                    'font-weight: bold">{point.y}</span>',
+                positioner: function (labelWidth) {
+                    return {
+                        x: (this.chart.chartWidth - labelWidth) / 2,
+                        y: (this.chart.plotHeight / 2) + 15
+                    };
+                }
+            },
+
+            pane: {
+                startAngle: 0,
+                endAngle: 360,
+                background: [{ // Track for Conversion
+                    outerRadius: '112%%',
+                    innerRadius: '88%%',
+                    backgroundColor: trackColors[0],
+                    borderWidth: 0
+                }, { // Track for Engagement
+                    outerRadius: '87%%',
+                    innerRadius: '63%%',
+                    backgroundColor: trackColors[1],
+                    borderWidth: 0
+                }, { // Track for Feedback
+                    outerRadius: '62%%',
+                    innerRadius: '38%%',
+                    backgroundColor: trackColors[2],
+                    borderWidth: 0
+                }]
+            },
+
+            yAxis: {
+                min: 0,
+                max: 100,
+                lineWidth: 0,
+                tickPositions: []
+            },
+
+            plotOptions: {
+                solidgauge: {
+                    dataLabels: {
+                        enabled: false
+                    },
+                    linecap: 'round',
+                    stickyTracking: false,
+                    rounded: true
+                }
+            },
+
+            series: [{
+                name: 'Conversion',
+                data: [{
+                    color: Highcharts.getOptions().colors[0],
+                    radius: '112%%',
+                    innerRadius: '88%%',
+                    y: 80
+                }],
+                custom: {
+                    icon: 'filter',
+                    iconColor: '#303030'
+                }
+            }, {
+                name: 'Engagement',
+                data: [{
+                    color: Highcharts.getOptions().colors[1],
+                    radius: '87%%',
+                    innerRadius: '63%%',
+                    y: 65
+                }],
+                custom: {
+                    icon: 'comments-o',
+                    iconColor: '#ffffff'
+                }
+            }, {
+                name: 'Feedback',
+                data: [{
+                    color: Highcharts.getOptions().colors[2],
+                    radius: '62%%',
+                    innerRadius: '38%%',
+                    y: 50
+                }],
+                custom: {
+                    icon: 'commenting-o',
+                    iconColor: '#303030'
+                }
+            }]
+        })</script>`)
+
+		sData.CheckinHistorySparkline = template.HTML(checkinHistorySparkline)
+		sData.ActivityInstantaneousChart = template.HTML(activityInstantaneousChart)
 
 		// sData.systemData = a.SystemData.(AppleSystemProfilerOutput)
 		b := bytes.NewBuffer(nil)
@@ -223,6 +337,7 @@ func (d *serverDaemon) viewAgentHandler(w http.ResponseWriter, r *http.Request, 
 	case "windows":
 	}
 
+	d.agentStartStreamActivityHandler(w, r, params)
 }
 
 func (d *serverDaemon) sendCommandHandler(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
