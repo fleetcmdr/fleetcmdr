@@ -29,10 +29,10 @@
         <table class="table">
         <tr>
             <td>
-                <h3>{{ .AgentData.Name }}</h3>
+                <div class="btn btn-danger float-right" hx-trigger="click" hx-delete="/api/v1/agent/{{.AgentData.ID}}/stream/activity" hx-swap="none" hx-on:click='document.getElementById("main-content").replaceChildren()'>Close</div>
             </td>
             <td>
-                <div class="btn btn-danger" hx-trigger="click" hx-delete="/api/v1/agent/{{.AgentData.ID}}/stream/activity" hx-swap="none" hx-on:click='document.getElementById("main-content").replaceChildren()'>Close</div>
+                <h3>{{ .AgentData.Name }}</h3>
             </td>
         </tr>
         <tr>
@@ -74,10 +74,35 @@
         <!--Add a set of rings? CPU/Mem/Disk for live activity, with a history sparkline of some kind below-->
         <!--<div class="btn btn-primary" hx-trigger="click" hx-get="/api/v1/agent/{{.AgentData.ID}}/stream/activity" hx-swap="none">Start Streaming</div>-->
 
+        <table class='table'>
+        <tr><td class="agent_field_name">CPU Activity (%)</td>
+        <td>
         <div id="cpu_activity" class="progress" role="progressbar" aria-label="CPU Percent" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100">
-          <div class="progress-bar bg-success progress-bar-animated" style="width: 0%" hx-trigger="every 2s" hx-get="/api/v1/agent/{{.AgentData.ID}}/stream/read/cpu" >Unknown</div>
+          <div class="progress-bar bg-success progress-bar-animated" style="width: 0%" _="init js AgentData.ID = {{.AgentData.ID}} end then repeat forever fetch /api/v1/agent/{{.AgentData.ID}}/stream/read/cpu as json then call updateCPUChart(it) then wait 2s end"></div>
         </div>
+        </td>
+        </tr>
+        <tr><td class="agent_field_name">RAM Pressure (%)</td>
+        <td>
+        <div id="ram_pressure" class="progress" role="progressbar" aria-label="RAM Pressure" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100">
+          <div class="progress-bar bg-success progress-bar-animated" style="width: 0%" _="init js AgentData.ID = {{.AgentData.ID}} end then repeat forever fetch /api/v1/agent/{{.AgentData.ID}}/stream/read/ram as json then call updateRAMChart(it) then wait 10s end"></div>
+        </div>
+        </td>
+        </tr>
+        </tr>
+        <tr><td class="agent_field_name">Disk Consumed (%)</td>
+        <td>
+        <div id="disk_consumed" class="progress" role="progressbar" aria-label="Disk Consumed" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100">
+          <div class="progress-bar bg-success progress-bar-animated" style="width: 0%" _="init js AgentData.ID = {{.AgentData.ID}} end then repeat forever fetch /api/v1/agent/{{.AgentData.ID}}/stream/read/disk as json then call updateDiskChart(it) then wait 60s end"></div>
+        </div>
+        </td>
+        </tr>
+        </table>
         <div id='activity_instantaneous_chart'></div>
+        <script>
+            AgentData.ID = {{$agentData.ID}}; 
+            console.log(AgentData);
+        </script>
         
         </div>
 

@@ -142,6 +142,7 @@ func (d *agentDaemon) streamActivity() {
 			resp, err := d.hc.Post(fmt.Sprintf("%s://%s/%s", d.programUrl.Scheme, d.controlServer, fmt.Sprintf(streamActivityMomentPath, d.ID)), "application/octet-stream", b)
 			if checkError(err) {
 				// return
+				continue
 			}
 
 			if resp.StatusCode == http.StatusNoContent {

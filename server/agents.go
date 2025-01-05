@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -59,13 +61,39 @@ func (d *serverDaemon) getAgents(limit, skip int) []*agent {
 
 func (d *serverDaemon) getAgentByID(id int) (agent, error) {
 	var a agent
-	q := "SELECT id, client_id, host_name, serial, os, system_data, streaming_activity FROM agents WHERE id = $1"
-	err := d.db.QueryRowContext(context.Background(), q, id).Scan(&a.ID, &a.ClientID, &a.Name, &a.Serial, &a.OS, &a.SystemData, &a.StreamingActivity)
-	if checkError(err) {
-		if errors.Is(err, sql.ErrNoRows) {
-			return a, fmt.Errorf("agent '%d' does not exist: %w", id, err)
+
+	a, ok := d.agents[id]
+	if !ok {
+		a.LatestActivityLocker = &sync.RWMutex{}
+		q := "SELECT id, client_id, host_name, serial, os, system_data, streaming_activity FROM agents WHERE id = $1"
+		err := d.db.QueryRowContext(context.Background(), q, id).Scan(&a.ID, &a.ClientID, &a.Name, &a.Serial, &a.OS, &a.SystemData, &a.StreamingActivity)
+		if checkError(err) {
+			if errors.Is(err, sql.ErrNoRows) {
+				return a, fmt.Errorf("agent '%d' does not exist: %w", id, err)
+			}
+			return a, err
 		}
-		return a, err
+
+		var data AppleSystemProfilerOutput
+
+		err = json.Unmarshal([]byte(a.SystemData), &data)
+		if checkError(err) {
+			return a, err
+		}
+		// log.Printf("SystemData: %#v", data)
+		cpuCountStrings := strings.Split(strings.TrimPrefix(data.SPHardwareDataType[0].NumberProcessors, "proc "), ":")
+		a.CPUCountEfficiency, err = strconv.Atoi(cpuCountStrings[2])
+		if checkError(err) {
+			return a, err
+		}
+		a.CPUCountPerformance, err = strconv.Atoi(cpuCountStrings[1])
+		if checkError(err) {
+			return a, err
+		}
+		// log.Printf("Agent data: %#v", a)
+		d.agentsLocker.Lock()
+		d.agents[id] = a
+		d.agentsLocker.Unlock()
 	}
 
 	return a, nil

@@ -24,3 +24,7 @@
 #checkin_history_sparkline {
     height: 30px;
 }
+
+#cpu_activity {
+    margin-top: 5px;
+}

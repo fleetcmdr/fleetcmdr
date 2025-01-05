@@ -8,7 +8,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/julienschmidt/httprouter"
@@ -109,7 +108,6 @@ func (d *serverDaemon) checkinHandler(w http.ResponseWriter, r *http.Request, pa
 			return
 		}
 		d.agentsLocker.Lock()
-		a.LatestActivityLocker = &sync.RWMutex{}
 		d.agents[cr.ID] = a
 		d.agentsLocker.Unlock()
 	}

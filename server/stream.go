@@ -34,22 +34,24 @@ func (d *serverDaemon) agentStreamActivityReaderHandler(w http.ResponseWriter, r
 
 	activityName := params.ByName("ActivityName")
 
-	var a Activity
+	var act Activity
 
-	d.agentsLocker.RLock()
-	v := d.agents[agentID]
-	d.agentsLocker.RUnlock()
-	if v.LatestActivityLocker == nil {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-	v.LatestActivityLocker.RLock()
-	a = v.LatestActivity
-	v.LatestActivityLocker.RUnlock()
+	a, err := d.getAgentByID(agentID)
+	a.LatestActivityLocker.RLock()
+	act = a.LatestActivity
+	a.LatestActivityLocker.RUnlock()
+
+	// log.Printf("sending activity: %#v", act)
 
 	switch activityName {
 	case "cpu":
-		w.Write([]byte(fmt.Sprintf("{\"cpu\": %.1f}", a.CPUConsumedPercent)))
+		w.Write([]byte(fmt.Sprintf("{\"cpu\": %.1f}", act.CPUConsumedPercent/(float64(a.CPUCountEfficiency+a.CPUCountPerformance)))))
+		return
+	case "ram":
+		w.Write([]byte(fmt.Sprintf("{\"ram\": %d}", 100-act.MemoryPressurePercent)))
+		return
+	case "disk":
+		w.Write([]byte(fmt.Sprintf("{\"disk\": %.1f}", float64(act.DiskUsedBytes)/float64(act.DiskSizeBytes)*100)))
 		return
 	}
 
@@ -107,18 +109,16 @@ func (d *serverDaemon) agentStreamActivityMomentHandler(w http.ResponseWriter, r
 
 	log.Printf("received activity: %#v", act)
 
-	d.agentsLocker.Lock()
-	a, ok := d.agents[agentID]
-	d.agentsLocker.Unlock()
-	if !ok {
-		a, err = d.getAgentByID(agentID)
-		if checkError(err) {
-			return
-		}
+	a, err := d.getAgentByID(agentID)
+	if checkError(err) {
+		return
 	}
 	a.LatestActivityLocker.Lock()
 	a.LatestActivity = act
 	a.LatestActivityLocker.Unlock()
+	d.agentsLocker.Lock()
+	d.agents[agentID] = a
+	d.agentsLocker.Unlock()
 	if !a.StreamingActivity {
 		w.WriteHeader(http.StatusNoContent)
 	}
@@ -139,11 +139,14 @@ func (d *serverDaemon) agentStartStreamActivityHandler(w http.ResponseWriter, re
 		return
 	}
 
+	a, err := d.getAgentByID(agentID)
+	if checkError(err) {
+		return
+	}
 	d.agentsLocker.Lock()
-	v := d.agents[agentID]
+	a.StreamingActivity = true
 	d.agentsLocker.Unlock()
-	v.StreamingActivity = true
-	d.agents[agentID] = v
+	d.agents[agentID] = a
 
 }
 
@@ -162,10 +165,12 @@ func (d *serverDaemon) agentEndStreamActivityHandler(w http.ResponseWriter, req 
 		return
 	}
 
+	a, err := d.getAgentByID(agentID)
+	if checkError(err) {
+		return
+	}
 	d.agentsLocker.Lock()
-	v := d.agents[agentID]
+	a.StreamingActivity = false
 	d.agentsLocker.Unlock()
-	v.StreamingActivity = false
-	d.agents[agentID] = v
 
 }
