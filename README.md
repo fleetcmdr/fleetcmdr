@@ -1,2 +1,2 @@
 # fleetcmdr
-IT Fleet Command Platform
+Remote Monitoring and Management (RMM) Platform
