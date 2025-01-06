@@ -28,3 +28,8 @@
 .activity_progress_bar {
     margin-top: 5px;
 }
+
+.core_activity {
+    float: left;
+    /* width: 20%; */
+}

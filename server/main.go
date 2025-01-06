@@ -28,7 +28,10 @@ type serverDaemon struct {
 }
 
 func parseTemplates() *template.Template {
-	templ := template.New("")
+	fm := template.FuncMap{"divide": func(a, b int) float64 {
+		return (float64(a) / float64(b)) * 100
+	}}
+	templ := template.New("").Funcs(fm)
 	err := filepath.Walk("./templates", func(path string, info os.FileInfo, err error) error {
 
 		if info.IsDir() {

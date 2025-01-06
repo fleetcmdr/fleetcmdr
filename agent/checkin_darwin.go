@@ -9,13 +9,17 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"runtime"
 	"strconv"
 	"strings"
 	"time"
+
+	"howett.net/plist"
 )
 
 type Activity struct {
+	PowerMetrics                 darwinPowerMetrics
 	CPUConsumedPercent           float64
 	MemoryPressurePercent        int64
 	DiskIOOperationsPerSecond    int     // `ioutil -d`` unknown baseline
@@ -38,9 +42,26 @@ func (d *agentDaemon) streamActivity() {
 		case <-ticker.C:
 			var a Activity
 			// collect and send metrics to channel
+
+			powerMetrics := "powermetrics -n 1 --show-all -i 100 -f plist"
+			out, err := run(powerMetrics)
+			if checkError(err) {
+				return
+			}
+
+			_, err = plist.Unmarshal([]byte(out), &a.PowerMetrics)
+			if checkError(err) {
+
+				err = os.WriteFile("powermetrics.plist.err", []byte(out), 755)
+				if checkError(err) {
+					// return
+				}
+				// return
+			}
+
 			// log.Printf("Gathering CPU data")
 			cpuPercent := "ps -A -o %cpu | awk '{s+=$1} END {print s}'"
-			out, err := run(cpuPercent)
+			out, err = run(cpuPercent)
 			if checkError(err) {
 				return
 			}

@@ -2,48 +2,60 @@
 var AgentData = {};
 AgentData.ID = 0;
 
-function updateCPUChart(thing) {
-    // console.log(thing)
-    $('#cpu_activity .progress-bar').animate({width: (thing.cpu/100) * $('#cpu_activity').width()}, 1000);
+function roundMe(n, sig) {
+    if (n === 0) return 0;
+    var mult = Math.pow(10, sig - Math.floor(Math.log(n < 0 ? -n: n) / Math.LN10) - 1);
+    return Math.round(n * mult) / mult;
+ }
 
-    if(thing.cpu < 80){
-        $('#cpu_activity .progress-bar').removeClass('bg-warning').removeClass('bg-critical').addClass('bg-success')
+function updateIndividualCPUProgressBars(thing) {
+    // console.log(thing)
+
+    $.each(thing.Extra, function(i,cluster){
+        $.each(cluster.CPUs, function(j, cpu){
+            divID = 'cpu_'+cluster.Name+'_'+cpu.CPU+'_activity'
+            console.log(divID)
+            $('#'+divID+' .progress-bar').animate({width: (1-cpu.IdleRatio) * $('#'+divID).width()}, 500);
+
+            freq = roundMe(cpu.FreqHz/1000000000, 3)
+            $('#'+divID+' .progress-bar').html(freq + "Ghz");
+
+            // if(thing.criticality == "nominal"){
+            //     $('#'+divID+' .progress-bar').removeClass('bg-warning').removeClass('bg-critical').addClass('bg-success')
+            // }
+            // if(thing.criticality == "warning"){
+            //     $('#'+divID+' .progress-bar').removeClass('bg-success').removeClass('bg-critical').addClass('bg-warning')
+            // }
+            // if(thing.criticality == "critical"){
+            //     $('#'+divID+' .progress-bar').removeClass('bg-success').removeClass('bg-warning').addClass('bg-critical')
+            // }
+        })
+    })
+}
+
+function updateProgressBar(divID, thing) {
+    // console.log(divID)
+    // console.log(thing)
+    // console.log(thing.value)
+    // divID = 'battery_percent'
+    $('#'+divID+' .progress-bar').animate({width: (thing.Value/100) * $('#'+divID).width()}, 500);
+    if(thing.Text != ""){
+        $('#'+divID+' .progress-bar').html(thing.Text)
     }
-    if(thing.cpu >= 80 && thing.cpu < 90){
-        $('#cpu_activity .progress-bar').removeClass('bg-success').removeClass('bg-critical').addClass('bg-warning')
+
+
+    if(thing.criticality == "nominal"){
+        $('#'+divID+' .progress-bar').removeClass('bg-warning').removeClass('bg-critical').addClass('bg-success')
     }
-    if(thing.cpu >= 90){
-        $('#cpu_activity .progress-bar').removeClass('bg-success').removeClass('bg-warning').addClass('bg-critical')
+    if(thing.criticality == "warning"){
+        $('#'+divID+' .progress-bar').removeClass('bg-success').removeClass('bg-critical').addClass('bg-warning')
+    }
+    if(thing.criticality == "critical"){
+        $('#'+divID+' .progress-bar').removeClass('bg-success').removeClass('bg-warning').addClass('bg-critical')
+    }
+
+    if(divID == "cpu_activity"){
+        updateIndividualCPUProgressBars(thing)
     }
 }
 
-function updateRAMChart(thing) {
-    // console.log(thing)
-    $('#ram_pressure .progress-bar').animate({width: (thing.ram/100) * $('#ram_pressure').width()}, 1000);
-
-    if(thing.ram < 80){
-        $('#ram_pressure .progress-bar').removeClass('bg-warning').removeClass('bg-critical').addClass('bg-success')
-    }
-    if(thing.ram >= 80 && thing.ram < 90){
-        $('#ram_pressure .progress-bar').removeClass('bg-success').removeClass('bg-critical').addClass('bg-warning')
-    }
-    if(thing.ram >= 90){
-        $('#ram_pressure .progress-bar').removeClass('bg-success').removeClass('bg-warning').addClass('bg-critical')
-    }
-}
-
-function updateDiskChart(thing) {
-    // console.log(thing)
-
-    $('#disk_consumed .progress-bar').animate({width: (thing.disk/100) * $('#disk_consumed').width()}, 250);
-
-    if(thing.disk < 80){
-        $('#disk_consumed .progress-bar').removeClass('bg-warning').removeClass('bg-critical').addClass('bg-success')
-    }
-    if(thing.disk >= 80 && thing.disk < 90){
-        $('#disk_consumed .progress-bar').removeClass('bg-success').removeClass('bg-critical').addClass('bg-warning')
-    }
-    if(thing.disk >= 90){
-        $('#disk_consumed .progress-bar').removeClass('bg-success').removeClass('bg-warning').addClass('bg-critical')
-    }
-}

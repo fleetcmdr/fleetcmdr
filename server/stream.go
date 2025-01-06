@@ -5,7 +5,6 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 
@@ -13,6 +12,7 @@ import (
 )
 
 type Activity struct {
+	PowerMetrics                 darwinPowerMetrics
 	CPUConsumedPercent           float64
 	MemoryPressurePercent        int64
 	DiskIOOperationsPerSecond    int     // `ioutil -d`` unknown baseline
@@ -22,6 +22,14 @@ type Activity struct {
 	NetworkUploadBytesPerSecond  int
 	NetworkDownloadBytesPerSeond int
 }
+
+type criticality string
+
+const (
+	criticalityNominal  criticality = "nominal"
+	criticalityWarning              = "warning"
+	criticalityCritical             = "critical"
+)
 
 func (d *serverDaemon) agentStreamActivityReaderHandler(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
 
@@ -43,24 +51,60 @@ func (d *serverDaemon) agentStreamActivityReaderHandler(w http.ResponseWriter, r
 
 	// log.Printf("sending activity: %#v", act)
 
-	switch activityName {
-	case "cpu":
-		w.Write([]byte(fmt.Sprintf("{\"cpu\": %.1f}", act.CPUConsumedPercent/(float64(a.CPUCountEfficiency+a.CPUCountPerformance)))))
-		return
-	case "ram":
-		w.Write([]byte(fmt.Sprintf("{\"ram\": %d}", 100-act.MemoryPressurePercent)))
-		return
-	case "disk":
-		w.Write([]byte(fmt.Sprintf("{\"disk\": %.1f}", float64(act.DiskUsedBytes)/float64(act.DiskSizeBytes)*100)))
-		return
+	var rd struct {
+		Value       any
+		Criticality string
+		Extra       any
+		Text        string
 	}
 
-	jsonBytes, err := json.Marshal(a)
+	switch activityName {
+	case "battery":
+
+		rd.Value = act.PowerMetrics.Battery.PercentCharge
+		if act.PowerMetrics.Battery.PercentCharge < 20 {
+			rd.Criticality = criticalityWarning
+		}
+		if act.PowerMetrics.Battery.PercentCharge < 5 {
+			rd.Criticality = criticalityCritical
+		}
+		rd.Text = fmt.Sprintf("%d%%", act.PowerMetrics.Battery.PercentCharge)
+	case "cpu":
+		rd.Value = act.CPUConsumedPercent / (float64(a.CPUCountEfficiency + a.CPUCountPerformance))
+		if act.CPUConsumedPercent/(float64(a.CPUCountEfficiency+a.CPUCountPerformance)) > 90 {
+			rd.Criticality = criticalityWarning
+		}
+		if act.CPUConsumedPercent/(float64(a.CPUCountEfficiency+a.CPUCountPerformance)) > 95 {
+			rd.Criticality = criticalityCritical
+		}
+		rd.Extra = act.PowerMetrics.Processor.Clusters
+		rd.Text = fmt.Sprintf("%.1f", act.CPUConsumedPercent/(float64(a.CPUCountEfficiency+a.CPUCountPerformance)))
+	case "ram":
+		rd.Value = 100 - act.MemoryPressurePercent
+		if 100-act.MemoryPressurePercent > 80 {
+			rd.Criticality = criticalityWarning
+		}
+		if 100-act.MemoryPressurePercent > 90 {
+			rd.Criticality = criticalityCritical
+		}
+		rd.Text = fmt.Sprintf("%d", 100-act.MemoryPressurePercent)
+	case "disk":
+		rd.Value = float64(act.DiskUsedBytes) / float64(act.DiskSizeBytes) * 100
+		if act.DiskSizeBytes-act.DiskUsedBytes < 20000 { // 20GB remains
+			rd.Criticality = criticalityWarning
+		}
+		if act.DiskSizeBytes-act.DiskUsedBytes < 10000 { // 10GB remains
+			rd.Criticality = criticalityCritical
+		}
+		rd.Text = fmt.Sprintf("%.1fGB Remaining", float64(act.DiskSizeBytes-act.DiskUsedBytes)/1024)
+	}
+
+	jsonBytes, err := json.Marshal(rd)
 	if checkError(err) {
 		return
 	}
-
 	w.Write(jsonBytes)
+	return
 }
 
 func (d *serverDaemon) agentStreamActivityMomentReaderHandler(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
@@ -107,7 +151,7 @@ func (d *serverDaemon) agentStreamActivityMomentHandler(w http.ResponseWriter, r
 		return
 	}
 
-	log.Printf("received activity: %#v", act)
+	// log.Printf("received activity: %#v", act)
 
 	a, err := d.getAgentByID(agentID)
 	if checkError(err) {

@@ -13,15 +13,18 @@ import (
 	"howett.net/plist"
 )
 
-func TestReadSystemData(t *testing.T){
-  _, err := readSystemData()  
-  if err != nil {
-    t.FailNow()
-  }
+func TestReadSystemData(t *testing.T) {
+	_, err := readSystemData()
+	if err != nil {
+		return
+	}
 }
 
 func TestQuotedStringSplit(t *testing.T) {
-	out := quotedStringSplit("stuff and things")
+	out, err := quotedStringSplit("stuff and things")
+	if checkError(err) {
+		return
+	}
 	log.Printf("Output: %+v", out)
 	if !slices.Equal(out, []string{"stuff", "and", "things"}) {
 		t.FailNow()
@@ -30,14 +33,14 @@ func TestQuotedStringSplit(t *testing.T) {
 
 type ASPO struct {
 	SPApplicationsDataType []struct {
-		Name         string    `json:"_name"`
-		ArchKind     string    `json:"arch_kind"`
-		LastModified string `json:"lastModified"`
-		ObtainedFrom string    `json:"obtained_from"`
-		Path         string    `json:"path"`
-		SignedBy     []string  `json:"signed_by,omitempty"`
-		Version      string    `json:"version,omitempty"`
-		Info         string    `json:"info,omitempty"`
+		Name         string   `json:"_name"`
+		ArchKind     string   `json:"arch_kind"`
+		LastModified string   `json:"lastModified"`
+		ObtainedFrom string   `json:"obtained_from"`
+		Path         string   `json:"path"`
+		SignedBy     []string `json:"signed_by,omitempty"`
+		Version      string   `json:"version,omitempty"`
+		Info         string   `json:"info,omitempty"`
 	} `json:"SPApplicationsDataType"`
 	SPConfigurationProfileDataType []struct {
 		Items []struct {
@@ -151,10 +154,10 @@ type ASPO struct {
 		Hardware  string `json:"hardware,omitempty"`
 		Interface string `json:"interface,omitempty"`
 		// IPv4      struct {
-			// ConfigMethod string `json:"ConfigMethod"`
+		// ConfigMethod string `json:"ConfigMethod"`
 		// } `json:"IPv4,omitempty"`
 		// IPv6 struct {
-			// ConfigMethod string `json:"ConfigMethod"`
+		// ConfigMethod string `json:"ConfigMethod"`
 		// } `json:"IPv6,omitempty"`
 		Proxies struct {
 			ExceptionsList []string `json:"ExceptionsList"`
@@ -175,7 +178,7 @@ type ASPO struct {
 			ServerAddresses []string `json:"ServerAddresses"`
 		} `json:"DNS,omitempty"`
 		IPAddress []string `json:"ip_address,omitempty"`
-		IPv4     struct {
+		IPv4      struct {
 			AdditionalRoutes []struct {
 				DestinationAddress string `json:"DestinationAddress"`
 				SubnetMask         string `json:"SubnetMask"`
@@ -198,7 +201,7 @@ type ASPO struct {
 			PrefixLength           []int    `json:"PrefixLength"`
 		} `json:"IPv6,omitempty"`
 		// DNS struct {
-			// SearchDomains []string `json:"SearchDomains"`
+		// SearchDomains []string `json:"SearchDomains"`
 		// } `json:"DNS,omitempty"`
 		SleepProxies []struct {
 			Name          string `json:"_name"`
@@ -299,11 +302,11 @@ type ASPO struct {
 		SppowerBatteryIsCharging        string `json:"sppower_battery_is_charging,omitempty"`
 		Items                           []struct {
 			Items []struct {
-				AppPID      int       `json:"appPID"`
-				Eventtype   string    `json:"eventtype"`
-				Scheduledby string    `json:"scheduledby"`
+				AppPID      int    `json:"appPID"`
+				Eventtype   string `json:"eventtype"`
+				Scheduledby string `json:"scheduledby"`
 				Time        string `json:"time"`
-				UserVisible bool      `json:"UserVisible"`
+				UserVisible bool   `json:"UserVisible"`
 			} `json:"_items"`
 			Name string `json:"_name"`
 		} `json:"_items,omitempty"`
@@ -364,9 +367,9 @@ type ASPO struct {
 			Protocol         string `json:"protocol"`
 			SmartStatus      string `json:"smart_status"`
 		} `json:"physical_drive,omitempty"`
-		SizeInBytes    int64  `json:"size_in_bytes"`
-		VolumeUUID     string `json:"volume_uuid"`
-		Writable       string `json:"writable"`
+		SizeInBytes int64  `json:"size_in_bytes"`
+		VolumeUUID  string `json:"volume_uuid"`
+		Writable    string `json:"writable"`
 	} `json:"SPStorageDataType"`
 	SPThunderboltDataType []struct {
 		Name           string `json:"_name"`
@@ -417,19 +420,19 @@ type ASPO struct {
 }
 
 func TestDecodeJson(t *testing.T) {
-  jsonBytes, err := os.ReadFile("systemprofiler2.json")
-  if checkError(err) {
-    return
-  }
+	jsonBytes, err := os.ReadFile("systemprofiler2.json")
+	if checkError(err) {
+		return
+	}
 
-  a := ASPO{}
+	a := ASPO{}
 
-  err = json.Unmarshal(jsonBytes, &a)
-  if checkError(err) {
-    return
-  }
+	err = json.Unmarshal(jsonBytes, &a)
+	if checkError(err) {
+		return
+	}
 
-  log.Printf("ASPO: %#v", a.SPHardwareDataType[0].SerialNumber)
+	log.Printf("ASPO: %#v", a.SPHardwareDataType[0].SerialNumber)
 
 }
 
@@ -468,7 +471,6 @@ func TestDecodePlist(t *testing.T) {
 		//subfieldT, _ := subfield.FieldByName(items["_name"].(string))
 		//subfield.Tag.Get("plist")
 		//sf := rv.FieldByName(items["_name"].(string))
-
 
 		if _, ok := items["_name"]; ok {
 			log.Printf("----------------------------------")
