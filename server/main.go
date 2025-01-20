@@ -58,7 +58,7 @@ func main() {
 
 	d := &serverDaemon{}
 
-	d.db = InitializePgSQLDatabase("localhost", "fleetcmdr", os.Getenv("FLEETCMDR_PGSQL_USER"), os.Getenv("FLEETCMDR_PGSQL_PASS"))
+	d.db = InitializePgSQLDatabase("localhost", "fleetcmdr", os.Getenv("FC_PGSQL_USER"), os.Getenv("FC_PGSQL_PASS"))
 	d.router = httprouter.New()
 	d.templates = parseTemplates()
 	d.agents = make(map[int]agent)
