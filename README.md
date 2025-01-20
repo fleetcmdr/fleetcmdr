@@ -8,6 +8,9 @@ Remote Monitoring and Management (RMM) Platform
 - For building agent and updater
   - FC_CONTROL_SERVER_DOMAIN='mydomain.com'
   - FC_CONTROL_SERVER_PORT='2213'
+- For authentication
+  - FC_ROUNDS=8
+  - FC_SALT='SomethingSalty'
 
 
 
