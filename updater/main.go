@@ -20,7 +20,7 @@ import (
 var (
 	versionMajor = 0
 	versionMinor = 0
-	versionPatch = 4
+	versionPatch = 5
 )
 
 type updaterDaemon struct {
@@ -84,7 +84,7 @@ func main() {
 	// checking every 24 hours for new agent
 	// localhost listener allows agent to poke and perform on-demand agent updates
 	ud := newDaemon()
-	ud.programUrl.Scheme = "http"
+	ud.programUrl.Scheme = "https"
 	ud.programUrl.Host = ud.controlServer
 	ud.programUrl.Path = fmt.Sprintf("/static/downloads/%s/%s/fc_updater", runtime.GOOS, runtime.GOARCH)
 	ud.daemonCfg = getPlatformUpdaterConfig()
@@ -95,7 +95,7 @@ func main() {
 	}
 
 	ad := &agentDaemon{}
-	ad.programUrl.Scheme = "http"
+	ad.programUrl.Scheme = "https"
 	ad.programUrl.Host = ud.controlServer
 	ad.programUrl.Path = fmt.Sprintf("/static/downloads/%s/%s/fc_agent", runtime.GOOS, runtime.GOARCH)
 	ad.daemonCfg = getPlatformAgentConfig()
@@ -255,7 +255,7 @@ func (d *agentDaemon) checkForUpdates() (err error) {
 
 	log.Printf("Checking agent version")
 
-	resp, err := d.hc.Get("http://localhost:22130/api/v1/version")
+	resp, err := d.hc.Get("https://localhost:22130/api/v1/version")
 	if checkError(err) {
 		agentNotResponsive = true
 		// return
