@@ -14,7 +14,7 @@ function updateIndividualCPUProgressBars(thing) {
     $.each(thing.Extra, function(i,cluster){
         $.each(cluster.CPUs, function(j, cpu){
             divID = 'cpu_'+cluster.Name+'_'+cpu.CPU+'_activity'
-            console.log(divID)
+            // console.log(divID)
             $('#'+divID+' .progress-bar').animate({width: (1-cpu.IdleRatio) * $('#'+divID).width()}, 500);
 
             freq = roundMe(cpu.FreqHz/1000000000, 3)

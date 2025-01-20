@@ -61,8 +61,10 @@ func (d *serverDaemon) agentStreamActivityReaderHandler(w http.ResponseWriter, r
 	switch activityName {
 	case "battery":
 
+		// todo - Criticality isn't being delivered to the browser... not sure why.
+
 		rd.Value = act.PowerMetrics.Battery.PercentCharge
-		if act.PowerMetrics.Battery.PercentCharge < 20 {
+		if act.PowerMetrics.Battery.PercentCharge < 22 {
 			rd.Criticality = criticalityWarning
 		}
 		if act.PowerMetrics.Battery.PercentCharge < 5 {
@@ -78,7 +80,7 @@ func (d *serverDaemon) agentStreamActivityReaderHandler(w http.ResponseWriter, r
 			rd.Criticality = criticalityCritical
 		}
 		rd.Extra = act.PowerMetrics.Processor.Clusters
-		rd.Text = fmt.Sprintf("%.1f", act.CPUConsumedPercent/(float64(a.CPUCountEfficiency+a.CPUCountPerformance)))
+		rd.Text = fmt.Sprintf("%.1f%%", act.CPUConsumedPercent/(float64(a.CPUCountEfficiency+a.CPUCountPerformance)))
 	case "ram":
 		rd.Value = 100 - act.MemoryPressurePercent
 		if 100-act.MemoryPressurePercent > 80 {
@@ -87,7 +89,7 @@ func (d *serverDaemon) agentStreamActivityReaderHandler(w http.ResponseWriter, r
 		if 100-act.MemoryPressurePercent > 90 {
 			rd.Criticality = criticalityCritical
 		}
-		rd.Text = fmt.Sprintf("%d", 100-act.MemoryPressurePercent)
+		rd.Text = fmt.Sprintf("%d%%", 100-act.MemoryPressurePercent)
 	case "disk":
 		rd.Value = float64(act.DiskUsedBytes) / float64(act.DiskSizeBytes) * 100
 		if act.DiskSizeBytes-act.DiskUsedBytes < 20000 { // 20GB remains
