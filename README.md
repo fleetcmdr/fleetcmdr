@@ -9,8 +9,8 @@ Remote Monitoring and Management (RMM) Platform
   - FC_CONTROL_SERVER_DOMAIN='mydomain.com'
   - FC_CONTROL_SERVER_PORT='2213'
 - For authentication
-  - FC_ROUNDS=8
-  - FC_SALT='SomethingSalty'
+  - FC_PASS_ROUNDS=8
+  - FC_PASS_SALT='SomethingSalty'
 
 
 
