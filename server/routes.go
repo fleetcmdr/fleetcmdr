@@ -18,7 +18,7 @@ import (
 func (d *serverDaemon) bindRoutes() {
 
 	d.router.GET("/", d.authHandler(d.baseHandler))
-	d.router.GET("/login", d.baseHandler)
+	d.router.GET("/login", d.loginHandler)
 	d.router.GET("/logout", d.logoutHandler)
 	d.router.POST("/login", d.loginHandler)
 	d.router.GET("/static/*path", d.staticHandler)
@@ -54,12 +54,11 @@ func (d *serverDaemon) bindRoutes() {
 
 func (d *serverDaemon) baseHandler(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
 
-	log.Printf("Returning login page")
+	log.Printf("Returning index page")
 
 	var data struct{}
 
-	err := d.templates.ExecuteTemplate(w, "login", data)
-	// err := d.templates.ExecuteTemplate(w, "index", data)
+	err := d.templates.ExecuteTemplate(w, "index", data)
 	if checkError(err) {
 		return
 	}
@@ -116,12 +115,15 @@ func (d *serverDaemon) authHandler(h httprouter.Handle) httprouter.Handle {
 			return
 		}
 
+		log.Printf("attempting to authenticate session '%s'", cookie.Value)
+
 		var uuid string
 		var username string
 		err = d.db.QueryRowContext(context.Background(), "SELECT uuid, username FROM user_sessions LEFT JOIN users ON (user_sessions.user_id = users.id) WHERE uuid = $1", cookie.Value).Scan(&uuid, &username)
 		if checkError(err) {
-			w.Header().Set("Location", "/login")
-			w.WriteHeader(http.StatusTemporaryRedirect)
+			http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
+			// w.Header().Set("Location", "/login")
+			// w.WriteHeader(http.StatusTemporaryRedirect)
 			return
 		}
 
@@ -131,8 +133,7 @@ func (d *serverDaemon) authHandler(h httprouter.Handle) httprouter.Handle {
 			return
 		}
 
-		w.Header().Set("Location", "/login")
-		w.WriteHeader(http.StatusTemporaryRedirect)
+		http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
 		return
 	}
 }
@@ -145,20 +146,39 @@ func (d *serverDaemon) logoutHandler(w http.ResponseWriter, r *http.Request, par
 
 	sessionUUID := cookie.Value
 
+	if sessionUUID == "" {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+
+	log.Printf("logging out session '%s'", sessionUUID)
+
 	_, err = d.db.ExecContext(context.Background(), "UPDATE user_sessions SET logged_out_ts = NOW() WHERE uuid = $1", sessionUUID)
 	if checkError(err) {
 		return
 	}
 
 	cookie.Value = ""
+	cookie.MaxAge = 0
 
 	http.SetCookie(w, cookie)
 
-	w.Header().Set("Location", "/login")
-	w.WriteHeader(http.StatusTemporaryRedirect)
+	http.Redirect(w, r, "/login", http.StatusSeeOther)
+	// w.Header().Set("Location", "/login")
+	// w.WriteHeader(http.StatusTemporaryRedirect)
 }
 
 func (d *serverDaemon) loginHandler(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+
+	if r.Method == http.MethodGet {
+		log.Printf("Returning login page")
+		var data struct{}
+		err := d.templates.ExecuteTemplate(w, "login", data)
+		if checkError(err) {
+			return
+		}
+		return
+	}
 
 	r.ParseForm()
 	user := r.Form.Get("user")
@@ -188,7 +208,6 @@ func (d *serverDaemon) loginHandler(w http.ResponseWriter, r *http.Request, para
 
 	pass = hex.EncodeToString(sha.Sum(nil))
 
-	var data struct{}
 	var authenticated bool
 
 	var userID int
@@ -216,14 +235,14 @@ func (d *serverDaemon) loginHandler(w http.ResponseWriter, r *http.Request, para
 		http.SetCookie(w, &http.Cookie{Name: "session", Domain: "fleetcmdr.com", Value: theUUID.String()})
 
 		log.Printf("Successfully authenticated '%s'", user)
-		err = d.templates.ExecuteTemplate(w, "index", data)
-		if checkError(err) {
-			return
-		}
+		log.Printf("Returning base page")
+
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+
 	} else {
 		log.Printf("WARNING: User '%s' failed to authenticate", user)
 		w.Header().Set("Location", "/login")
-		w.WriteHeader(http.StatusUnauthorized)
+		w.WriteHeader(http.StatusTemporaryRedirect)
 		return
 	}
 }
