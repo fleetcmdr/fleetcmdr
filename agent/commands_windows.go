@@ -1,6 +1,15 @@
 package main
 
-func run(command string) (string, error) {
+import (
+	"encoding/hex"
+	"fmt"
+	"log"
+	"os/exec"
+	"strings"
+	"unicode"
+)
+
+func run(command string) (result string, err error) {
 
 	// According to...
 	// https://stackoverflow.com/questions/50809752/golang-invoking-powershell-exe-always-returns-ascii-characters
@@ -10,14 +19,17 @@ func run(command string) (string, error) {
 	command = fmt.Sprintf(`powershell -c "%s")`, command)
 	log.Printf("Running command \"%s\"", command)
 
-	args := quotedStringSplit(command)
+	args, err := quotedStringSplit(command)
+	if checkError(err) {
+		return
+	}
 	//log.Printf("%+v", args)
 
 	// var cmd *exec.Cmd
 	// if len(args) == 1 {
 	// 	cmd = exec.Command(args[0])
 	// } else if len(args) > 1 {
-	cmd = exec.Command(args[0], args[1:]...)
+	cmd := exec.Command(args[0], args[1:]...)
 	// }
 
 	out, err := cmd.CombinedOutput()
@@ -25,7 +37,7 @@ func run(command string) (string, error) {
 		return "", err
 	}
 
-	//log.Printf("Output: %s", string(out))
+	log.Printf("Output: %s", string(out))
 
 	//err = cmd.Wait()
 	//if checkError(err) {

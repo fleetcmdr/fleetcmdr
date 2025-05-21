@@ -52,6 +52,20 @@ import (
 // 	return output
 // }
 
+type Command struct {
+	UUID    string
+	Name    string
+	Input   string
+	Output  string
+	Special specialCommand
+}
+
+type specialCommand int64
+
+const (
+	specialUpgrade specialCommand = 1 << iota
+)
+
 // ParseCommand splits a command string into tokens, preserving quoted substrings.
 func quotedStringSplit(input string) ([]string, error) {
 	var tokens []string

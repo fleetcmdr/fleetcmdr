@@ -316,20 +316,6 @@ func (d *agentDaemon) sendSystemData() {
 	d.checkin()
 }
 
-type Command struct {
-	UUID    string
-	Name    string
-	Input   string
-	Output  string
-	Special specialCommand
-}
-
-type specialCommand int64
-
-const (
-	specialUpgrade specialCommand = 1 << iota
-)
-
 type checkinResponse struct {
 	ID             int
 	Commands       []Command

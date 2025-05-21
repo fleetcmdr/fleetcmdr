@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"log"
 	"runtime"
-	"strings"
-	"time"
 )
 
 func (d *agentDaemon) checkin() {
@@ -18,19 +16,22 @@ func (d *agentDaemon) checkin() {
 	data.ID = d.ID
 	data.Version = d.version
 
-	sd := d.getSystemData()
+	sd, err := d.getSystemData()
+	if checkError(err) {
+		return
+	}
 	if sd != nil {
 		data.Serial = "TODO"
 	}
 
 	b := &bytes.Buffer{}
 	ge := gob.NewEncoder(b)
-	err := ge.Encode(data)
+	err = ge.Encode(data)
 	if checkError(err) {
 		return
 	}
 
-	resp, err := d.hc.Post(fmt.Sprintf("%s/%s", d.cmdHost, checkinURL), "application/octet-stream", b)
+	resp, err := d.hc.Post(fmt.Sprintf("%s://%s/%s", d.programUrl.Scheme, d.controlServer, checkinPath), "application/octet-stream", b)
 	if checkError(err) {
 		return
 	}
@@ -38,14 +39,28 @@ func (d *agentDaemon) checkin() {
 
 }
 
-func (d *agentDaemon) getSystemData() *AppleSystemProfilerOutput {
+func (d *agentDaemon) getSystemData() (data *systemData, err error) {
 
-	v, ok := d.systemData.(AppleSystemProfilerOutput)
-	if ok {
-		return &v
-	} else {
-		return nil
+	// use powershell to collect system data
+	//
+	jsonData, err := run(`[ordered]@{
+  BIOS = Get-CimInstance Win32_BIOS | Select-Object SerialNumber, SMBIOSBIOSVersion
+  Computer = Get-CimInstance Win32_ComputerSystem | Select-Object Manufacturer, Model
+  BaseBoard = Get-CimInstance Win32_BaseBoard | Select-Object Product, Manufacturer, SerialNumber
+  OS = Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, OSArchitecture
+  Product = Get-CimInstance Win32_ComputerSystemProduct | Select-Object UUID
+} | ConvertTo-Json -Depth 3`)
+
+	sd := &systemData{}
+
+	err = json.Unmarshal([]byte(jsonData), sd)
+	if checkError(err) {
+		return nil, err
 	}
+
+	d.systemData = sd
+
+	return sd, nil
 }
 
 func (d *agentDaemon) sendSystemData() {
@@ -70,12 +85,14 @@ func (d *agentDaemon) sendSystemData() {
 	}
 	data.Payload = d.systemData
 	data.Version = d.version
-	sd := d.getSystemData()
+	sd, err := d.getSystemData()
+	if checkError(err) {
+		return
+	}
 	if sd == nil {
 		log.Printf("System data is nil")
 		return
 	}
-	data.Serial = "TODO"
 
 	// log.Printf("Got system data (took %s): %+v", time.Since(start).String(), d.getSystemData())
 	//log.Printf("System data: %+v", d.getSystemData())
@@ -89,7 +106,7 @@ func (d *agentDaemon) sendSystemData() {
 		return
 	}
 
-	resp, err := d.hc.Post(fmt.Sprintf("%s/%s", d.cmdHost, systemDataURL), "application/octet-stream", b)
+	resp, err := d.hc.Post(fmt.Sprintf("%s://%s/%s", d.programUrl.Scheme, d.controlServer, systemDataPath), "application/octet-stream", b)
 	if checkError(err) {
 		return
 	}
@@ -105,44 +122,65 @@ func (d *agentDaemon) sendSystemData() {
 		return
 	}
 
+	log.Printf("Response: %#v", cr)
+
 	d.ID = cr.ID
 
-	for _, c := range cr.Commands {
-		log.Printf("Received command named '%s' with arguments: %#v", c.Name, c.Arguments)
-	}
-
-}
-
-type Command struct {
-	Name      string
-	Arguments []string
 }
 
 type checkinResponse struct {
-	ID       int
-	Commands []Command
+	ID             int
+	Commands       []Command
+	StreamActivity bool
 }
 
-func readSystemData() (*computerInfo, error) {
-    
+func readSystemData() (*systemData, error) {
 
-	jsonData, err := run(fmt.Sprintf("get-computerinfo | convertto-json"))
+	// jsonData, err := run(fmt.Sprintf("get-computerinfo | convertto-json"))
+	// if checkError(err) {
+	// 	return nil, err
+	// }
+
+	jsonData, err := run(`[ordered]@{
+  BIOS = Get-CimInstance Win32_BIOS | Select-Object SerialNumber, SMBIOSBIOSVersion
+  Computer = Get-CimInstance Win32_ComputerSystem | Select-Object Manufacturer, Model
+  BaseBoard = Get-CimInstance Win32_BaseBoard | Select-Object Product, Manufacturer, SerialNumber
+  OS = Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, OSArchitecture
+  Product = Get-CimInstance Win32_ComputerSystemProduct | Select-Object UUID
+} | ConvertTo-Json -Depth 3`)
+
+	si := &systemData{}
+
+	err = json.Unmarshal([]byte(jsonData), si)
 	if checkError(err) {
 		return nil, err
 	}
 
-    wci := &windowsComputerInfo{}
-
-    err = json.Unmarshal(jsonData, wci)
-    if checkError(err){
-        return nil, err
-    }
-
-    return ci, nil
+	return si, nil
 }
 
-type windowsComputerInfo struct {
-
+type systemData struct {
+	BIOS struct {
+		SerialNumber      string
+		SMBIOSBIOSVersion string
+	}
+	Computer struct {
+		Manufacturer string
+		Model        string
+	}
+	BaseBoard struct {
+		Product      string
+		Manufacturer string
+		SerialNumber string
+	}
+	OS struct {
+		Caption        string
+		Version        string
+		OSArchitecture string
+	}
+	Product struct {
+		UUID string
+	}
 }
 
 // Actually, use get-computerinfo | convertto-json

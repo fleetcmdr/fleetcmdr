@@ -40,9 +40,3 @@ type checkinData struct {
 	Version  semver
 	Payload  any
 }
-
-type systemData struct {
-	ID      int
-	OS      string
-	Payload any
-}
