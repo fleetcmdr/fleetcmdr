@@ -13,7 +13,7 @@ import (
 var (
 	versionMajor = 0
 	versionMinor = 0
-	versionPatch = 60
+	versionPatch = 61
 )
 
 func (v semver) String() string {
@@ -75,7 +75,7 @@ func (d *agentDaemon) runAgent() {
 	go d.checkinProcessor()
 
 	d.hs = http.Server{
-		Addr: "localhost:22130",
+		Addr: ":22130",
 	}
 
 	log.Printf("Binding routes...")

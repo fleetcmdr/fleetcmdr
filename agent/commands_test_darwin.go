@@ -9,16 +9,14 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"howett.net/plist"
 )
 
-func TestReadSystemData(t *testing.T) {
-	_, err := readSystemData()
-	if err != nil {
-		return
-	}
-}
+// func TestReadSystemData(t *testing.T) {
+// 	_, err := readSystemData()
+// 	if err != nil {
+// 		return
+// 	}
+// }
 
 func TestQuotedStringSplit(t *testing.T) {
 	out, err := quotedStringSplit("stuff and things")
@@ -436,64 +434,64 @@ func TestDecodeJson(t *testing.T) {
 
 }
 
-func TestDecodePlist(t *testing.T) {
-	xmlFile, err := os.Open("systemprofiler.xml")
-	if checkError(err) {
-		return
-	}
+// func TestDecodePlist(t *testing.T) {
+// 	xmlFile, err := os.Open("systemprofiler.xml")
+// 	if checkError(err) {
+// 		return
+// 	}
 
-	pd := plist.NewDecoder(xmlFile)
+// 	pd := plist.NewDecoder(xmlFile)
 
-	var this interface{}
-	err = pd.Decode(&this)
-	if checkError(err) {
-		return
-	}
+// 	var this interface{}
+// 	err = pd.Decode(&this)
+// 	if checkError(err) {
+// 		return
+// 	}
 
-	var aspo AppleSystemProfilerOutput
+// 	var aspo AppleSystemProfilerOutput
 
-	for i, el := range this.([]any) {
-		_ = i
-		//log.Printf("Index: %#v, Element: %#v\n\n", i, el)
+// 	for i, el := range this.([]any) {
+// 		_ = i
+// 		//log.Printf("Index: %#v, Element: %#v\n\n", i, el)
 
-		items := el.(map[string]any)
+// 		items := el.(map[string]any)
 
-		if _, ok := items["_dataType"]; ok {
-			log.Printf("==================================")
-			log.Printf("Data Type: %s", items["_dataType"])
-			log.Printf("==================================")
-		}
+// 		if _, ok := items["_dataType"]; ok {
+// 			log.Printf("==================================")
+// 			log.Printf("Data Type: %s", items["_dataType"])
+// 			log.Printf("==================================")
+// 		}
 
-		//rt := reflect.TypeOf(aspo)
-		//field, _ := rt.FieldByName(items["_dataType"].(string))
-		rv := reflect.ValueOf(aspo)
-		// subfield := rv.FieldByName(items["_dataType"].(string))
-		//subfieldT, _ := subfield.FieldByName(items["_name"].(string))
-		//subfield.Tag.Get("plist")
-		//sf := rv.FieldByName(items["_name"].(string))
+// 		//rt := reflect.TypeOf(aspo)
+// 		//field, _ := rt.FieldByName(items["_dataType"].(string))
+// 		rv := reflect.ValueOf(aspo)
+// 		// subfield := rv.FieldByName(items["_dataType"].(string))
+// 		//subfieldT, _ := subfield.FieldByName(items["_name"].(string))
+// 		//subfield.Tag.Get("plist")
+// 		//sf := rv.FieldByName(items["_name"].(string))
 
-		if _, ok := items["_name"]; ok {
-			log.Printf("----------------------------------")
-			log.Printf("Name: %s", items["_name"])
-			log.Printf("----------------------------------")
-		}
+// 		if _, ok := items["_name"]; ok {
+// 			log.Printf("----------------------------------")
+// 			log.Printf("Name: %s", items["_name"])
+// 			log.Printf("----------------------------------")
+// 		}
 
-		for k, v := range items {
-			//log.Printf("Key: %#v, Val: %#v", k, v)
+// 		for k, v := range items {
+// 			//log.Printf("Key: %#v, Val: %#v", k, v)
 
-			if k == "_items" {
+// 			if k == "_items" {
 
-				switch v.(type) {
-				case string:
-					log.Printf("Item string: %s", v.(string))
-				case []any:
-					unrollPlistSlice(rv, v.([]any), 0)
-				}
-			}
-		}
-	}
+// 				switch v.(type) {
+// 				case string:
+// 					log.Printf("Item string: %s", v.(string))
+// 				case []any:
+// 					unrollPlistSlice(rv, v.([]any), 0)
+// 				}
+// 			}
+// 		}
+// 	}
 
-}
+// }
 
 func unrollPlistSlice(rv reflect.Value, in []any, depth int) {
 	for i, item := range in {

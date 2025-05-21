@@ -1,0 +1,50 @@
+{{ define "login" }}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>FleetCmdr Login</title>
+</head>
+<body>
+
+<main class="main" id="top">
+    <div class="container" data-layout="container">
+        <div class="content mt-5 px-lg-5">
+            <div class="row">
+                <div class="col">
+                    <section class="pb-4">
+                        <section class="w-100 p-4 d-flex justify-content-center pb-4">
+                            <form method="POST" action="/login">
+                                <div class="text-center">
+                                    <p>FleetCmdr</p>
+                                </div>
+                                <!-- Email input -->
+                                <div class="form-outline mb-4">
+                                    <input type="text" id="form2Example1" class="form-control" name="user" placeholder="Username" />
+                                </div>
+
+                                <!-- Password input -->
+                                <div class="form-outline mb-4">
+                                    <input type="password" id="form2Example2" class="form-control" name="pass" placeholder="Password" />
+                                    <label id="formInvalidCredentials" style="display: none; color: red" class="form-label" for="form2Example2">Error: Invalid Credentials</label>
+                                </div>
+                                <span></span>
+
+                                <!-- Submit button -->
+                                <div class="text-center">
+                                    <button type="submit" class="btn btn-primary btn-block mb-4">Login</button>
+                                </div>
+
+                            </form>
+                        </section>
+                    </section>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+<script src="static/js/bootstrap.min.js"></script>
+</body>
+</html>
+
+{{ end }}

@@ -58,17 +58,17 @@ func main() {
 
 	d := &serverDaemon{}
 
-	d.db = InitializePgSQLDatabase("localhost", "fleetcmdr", os.Getenv("FLEETCMDR_PGSQL_USER"), os.Getenv("FLEETCMDR_PGSQL_PASS"))
+	d.db = InitializePgSQLDatabase("localhost", "fleetcmdr", os.Getenv("FC_PGSQL_USER"), os.Getenv("FC_PGSQL_PASS"))
 	d.router = httprouter.New()
 	d.templates = parseTemplates()
 	d.agents = make(map[int]agent)
 	d.agentsLocker = &sync.RWMutex{}
 	d.currentAgentVersionLocker = &sync.RWMutex{}
 
-	d.hs = http.Server{
-		Addr:    "localhost:2213",
-		Handler: d.router,
-	}
+	// d.hs = http.Server{
+	// 	Addr:    ":2213",
+	// 	Handler: d.router,
+	// }
 	d.getLatestAgentVersion()
 
 	log.Printf("Binding routes...")
@@ -76,10 +76,11 @@ func main() {
 	d.bindRoutes()
 
 	log.Printf("Starting server...")
-	err := d.hs.ListenAndServe()
-	if checkError(err) {
-		return
-	}
+	d.startServer()
+	// err := d.hs.ListenAndServe()
+	// if checkError(err) {
+	// 	return
+	// }
 
 	log.Printf("Shutting down...")
 
