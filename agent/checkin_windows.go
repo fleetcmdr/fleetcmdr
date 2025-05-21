@@ -21,7 +21,7 @@ func (d *agentDaemon) checkin() {
 		return
 	}
 	if sd != nil {
-		data.Serial = "TODO"
+		data.Serial = sd.BIOS.SerialNumber
 	}
 
 	b := &bytes.Buffer{}
